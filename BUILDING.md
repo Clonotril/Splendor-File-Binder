@@ -66,10 +66,11 @@ dotnet publish src\Stub\Stub.csproj -c Release -r win-x64 --self-contained true 
 dotnet publish src\Binder\Binder.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish\Binder
 ```
 
-### Step 5: Copy Stub and rcedit next to Binder
+### Step 5: Copy Stub, rcedit, and app icon next to Binder
 ```powershell
 Copy-Item "publish\Stub\SplendorFileStub.exe" "publish\Binder\SplendorFileStub.exe" -Force
 Copy-Item "tools\rcedit.exe" "publish\Binder\rcedit.exe" -Force
+Copy-Item "app.ico" "publish\Binder\app.ico" -Force
 ```
 
 ---
@@ -83,15 +84,16 @@ After building, the **`publish\Binder\`** folder contains everything needed:
 | `SplendorFileBinder.exe` | Main GUI app (standalone, no .NET needed) |
 | `SplendorFileStub.exe` | Stub embedded into bound output files |
 | `rcedit.exe` | Sets icons/metadata on output EXEs |
+| `app.ico` | Application icon used by the GUI and About dialog |
 
-> The `.pdb` file in that folder is for debugging only — exclude it from the release zip.
+> The `.pdb` and `crash.log` files (if present) are for debugging only — exclude them from the release zip.
 
 ---
 
 ## Create Release Zip
 
 ```powershell
-Compress-Archive -Path "publish\Binder\*.exe" -DestinationPath "SplendorFileBinder-v1.0-win-x64.zip" -Force
+Compress-Archive -Path "publish\Binder\*.exe", "publish\Binder\app.ico" -DestinationPath "SplendorFileBinder-v1.0-win-x64.zip" -Force
 ```
 
 Upload `SplendorFileBinder-v1.0-win-x64.zip` to GitHub Releases.
@@ -121,9 +123,10 @@ dotnet publish src\Binder\Binder.csproj -c Release -r win-x64 --self-contained t
 # Copy supporting files
 Copy-Item "publish\Stub\SplendorFileStub.exe" "publish\Binder\SplendorFileStub.exe" -Force
 Copy-Item "tools\rcedit.exe" "publish\Binder\rcedit.exe" -Force
+Copy-Item "app.ico" "publish\Binder\app.ico" -Force
 
-# Create release zip (exclude .pdb)
-Compress-Archive -Path "publish\Binder\*.exe" -DestinationPath "SplendorFileBinder-v1.0-win-x64.zip" -Force
+# Create release zip (exclude .pdb and logs)
+Compress-Archive -Path "publish\Binder\*.exe", "publish\Binder\app.ico" -DestinationPath "SplendorFileBinder-v1.0-win-x64.zip" -Force
 ```
 
 ---
