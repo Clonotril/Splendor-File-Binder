@@ -46,6 +46,10 @@ public partial class MainForm : Form
         BackColor = Color.FromArgb(30, 30, 30);
         ForeColor = Color.White;
 
+        string iconPath = Path.Combine(AppContext.BaseDirectory, "app.ico");
+        if (File.Exists(iconPath))
+            Icon = new Icon(iconPath);
+
         int pad = 20;
         int contentW = 700 - pad * 2;
         int btnX = 700 - pad - 90;

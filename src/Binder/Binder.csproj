@@ -8,7 +8,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SplendorFileBinder</RootNamespace>
     <AssemblyName>SplendorFileBinder</AssemblyName>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="app.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
 </Project>
 
