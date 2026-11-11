@@ -258,14 +258,32 @@ public static class IconInjector
     /// </summary>
     private static void RunRcedit(string rceditPath, string exePath, string? iconPath, VersionInfoData? vi)
     {
+        string args = BuildRceditArgs(exePath, iconPath, vi, includeNumericVersions: true);
+
+        int exitCode = ExecuteRcedit(rceditPath, args, out string stderr);
+
+        if (exitCode != 0)
+        {
+            // Retry without numeric version args — they're the most common failure point
+            string fallbackArgs = BuildRceditArgs(exePath, iconPath, vi, includeNumericVersions: false);
+            if (fallbackArgs != args)
+            {
+                exitCode = ExecuteRcedit(rceditPath, fallbackArgs, out stderr);
+            }
+
+            if (exitCode != 0)
+                throw new InvalidOperationException($"rcedit failed: {stderr}");
+        }
+    }
+
+    private static string BuildRceditArgs(string exePath, string? iconPath, VersionInfoData? vi, bool includeNumericVersions)
+    {
         var args = new StringBuilder();
         args.Append($"\"{exePath}\"");
 
-        // Icon
         if (!string.IsNullOrEmpty(iconPath))
             args.Append($" --set-icon \"{iconPath}\"");
 
-        // Version info strings
         if (vi != null)
         {
             void AddString(string key, string? value)
@@ -282,15 +300,36 @@ public static class IconInjector
             AddString("InternalName", vi.InternalName);
 
             if (!string.IsNullOrWhiteSpace(vi.FileVersion))
-                args.Append($" --set-file-version \"{EscapeArg(vi.FileVersion)}\"");
+            {
+                if (includeNumericVersions)
+                {
+                    string? fv = SanitizeVersion(vi.FileVersion);
+                    if (fv != null)
+                        args.Append($" --set-file-version \"{EscapeArg(fv)}\"");
+                }
+                AddString("FileVersion", vi.FileVersion);
+            }
             if (!string.IsNullOrWhiteSpace(vi.ProductVersion))
-                args.Append($" --set-product-version \"{EscapeArg(vi.ProductVersion)}\"");
+            {
+                if (includeNumericVersions)
+                {
+                    string? pv = SanitizeVersion(vi.ProductVersion);
+                    if (pv != null)
+                        args.Append($" --set-product-version \"{EscapeArg(pv)}\"");
+                }
+                AddString("ProductVersion", vi.ProductVersion);
+            }
         }
 
+        return args.ToString();
+    }
+
+    private static int ExecuteRcedit(string rceditPath, string arguments, out string stderr)
+    {
         var psi = new ProcessStartInfo
         {
             FileName = rceditPath,
-            Arguments = args.ToString(),
+            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
@@ -300,15 +339,43 @@ public static class IconInjector
         using var process = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start rcedit.");
 
-        string stderr = process.StandardError.ReadToEnd();
+        stderr = process.StandardError.ReadToEnd();
         process.WaitForExit();
-
-        if (process.ExitCode != 0)
-            throw new InvalidOperationException($"rcedit failed: {stderr}");
+        return process.ExitCode;
     }
 
     /// <summary>Escapes quotes inside an rcedit argument value.</summary>
     private static string EscapeArg(string value) => value.Replace("\"", "\\\"");
+
+    /// <summary>
+    /// Extracts a numeric version (x.y.z.w) from a version string.
+    /// Returns null if no valid version can be parsed.
+    /// </summary>
+    private static string? SanitizeVersion(string version)
+    {
+        if (string.IsNullOrWhiteSpace(version)) return null;
+
+        // Strip leading 'v' or 'V'
+        string v = version.TrimStart();
+        if (v.StartsWith('v') || v.StartsWith('V'))
+            v = v[1..];
+
+        // Take only the numeric prefix (stop at first non-digit, non-dot)
+        int end = 0;
+        while (end < v.Length && (char.IsDigit(v[end]) || v[end] == '.'))
+            end++;
+        v = v[..end].Trim('.');
+
+        if (string.IsNullOrEmpty(v)) return null;
+
+        // Try parsing as System.Version
+        if (Version.TryParse(v, out var parsed))
+        {
+            return $"{parsed.Major}.{Math.Max(0, parsed.Minor)}.{Math.Max(0, parsed.Build)}.{Math.Max(0, parsed.Revision)}";
+        }
+
+        return null;
+    }
 
     // ----------------------------------------------------------------
     // PE parsing helpers
