@@ -11,7 +11,7 @@ public partial class MainForm : Form
     private readonly FluentCard cardFooter;
 
     // Controls
-    private readonly TextBox txtStubPath;
+    private readonly FluentTextBox txtStubPath;
     private readonly FluentButton btnBrowseStub;
     private readonly FluentButton btnAssemblySettings;
     private readonly Label lblAssemblyStatus;
@@ -139,14 +139,11 @@ public partial class MainForm : Form
         };
         cardStub.Controls.Add(lblStub);
 
-        txtStubPath = new TextBox
+        txtStubPath = new FluentTextBox
         {
-            Location = new Point(14, 30),
-            Size = new Size(cardStub.Width - 14 - 100 - 12, 26),
+            Location = new Point(14, 28),
+            Size = new Size(cardStub.Width - 14 - 100 - 12, 30),
             Font = Theme.FontMono,
-            BackColor = Theme.BgField,
-            ForeColor = Theme.TextPrimary,
-            BorderStyle = BorderStyle.FixedSingle,
             Text = FindDefaultStubPath()
         };
         cardStub.Controls.Add(txtStubPath);
@@ -154,8 +151,9 @@ public partial class MainForm : Form
         btnBrowseStub = new FluentButton
         {
             Text = "Browse...",
-            Location = new Point(cardStub.Width - 14 - 96, 29),
-            Size = new Size(96, 28)
+            Location = new Point(cardStub.Width - 14 - 96, 28),
+            Size = new Size(96, 30),
+            CornerRadius = 6
         };
         btnBrowseStub.Click += (_, _) =>
         {
@@ -286,6 +284,7 @@ public partial class MainForm : Form
             EnableHeadersVisualStyles = false,
             ColumnHeadersHeight = 32,
             ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            ShowCellToolTips = true,
             AllowDrop = true
         };
         dgvFiles.RowTemplate.Height = 30;
@@ -344,6 +343,7 @@ public partial class MainForm : Form
         var colStartup = new DataGridViewCheckBoxColumn
         {
             Name = "Startup", HeaderText = "Startup", Width = 75,
+            ToolTipText = "Add to Windows Startup — copies checked files to the Windows Startup folder so they run automatically on sign-in.",
             SortMode = DataGridViewColumnSortMode.NotSortable,
             FalseValue = false, TrueValue = true
         };
@@ -353,6 +353,7 @@ public partial class MainForm : Form
         var colAdmin = new DataGridViewCheckBoxColumn
         {
             Name = "Admin", HeaderText = "Admin", Width = 75,
+            ToolTipText = "Run as Administrator — launches checked files with elevated administrator privileges (UAC prompt).",
             SortMode = DataGridViewColumnSortMode.NotSortable,
             FalseValue = false, TrueValue = true
         };

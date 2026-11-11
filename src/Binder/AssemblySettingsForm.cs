@@ -17,19 +17,19 @@ public class AssemblySettingsForm : Form
 {
     // Assembly info controls
     private readonly CheckBox chkChangeAssembly;
-    private readonly TextBox txtProductName;
-    private readonly TextBox txtDescription;
-    private readonly TextBox txtCompanyName;
-    private readonly TextBox txtCopyright;
-    private readonly TextBox txtTrademarks;
-    private readonly TextBox txtOriginalFilename;
-    private readonly TextBox txtProductVersion;
-    private readonly TextBox txtFileVersion;
+    private readonly FluentTextBox txtProductName;
+    private readonly FluentTextBox txtDescription;
+    private readonly FluentTextBox txtCompanyName;
+    private readonly FluentTextBox txtCopyright;
+    private readonly FluentTextBox txtTrademarks;
+    private readonly FluentTextBox txtOriginalFilename;
+    private readonly FluentTextBox txtProductVersion;
+    private readonly FluentTextBox txtFileVersion;
     private readonly FluentCard pnlAssemblyFields;
 
     // Icon controls
     private readonly CheckBox chkChangeIcon;
-    private readonly TextBox txtIconPath;
+    private readonly FluentTextBox txtIconPath;
     private readonly FluentButton btnBrowseIcon;
     private readonly FluentButton btnClearIcon;
     private readonly PictureBox picIconPreview;
@@ -162,14 +162,10 @@ public class AssemblySettingsForm : Form
         };
         pnlIconFields.Controls.Add(picIconPreview);
 
-        txtIconPath = new TextBox
+        txtIconPath = new FluentTextBox
         {
-            Location = new Point(72, 22),
-            Size = new Size(cw - 72 - 14 - 90 - 8 - 42, 26),
-            Font = Theme.FontBody,
-            BackColor = Theme.BgField,
-            ForeColor = Theme.TextPrimary,
-            BorderStyle = BorderStyle.FixedSingle,
+            Location = new Point(72, 21),
+            Size = new Size(cw - 72 - 14 - 90 - 8 - 42, 30),
             PlaceholderText = "Select an .ico file...",
             ReadOnly = true
         };
@@ -179,7 +175,7 @@ public class AssemblySettingsForm : Form
         {
             Text = "Browse...",
             Location = new Point(cw - 14 - 90 - 8 - 42, 21),
-            Size = new Size(90, 28),
+            Size = new Size(90, 30),
             CornerRadius = 6
         };
         btnBrowseIcon.Click += BtnBrowseIcon_Click;
@@ -189,7 +185,7 @@ public class AssemblySettingsForm : Form
         {
             Text = "✕",
             Location = new Point(cw - 14 - 42, 21),
-            Size = new Size(42, 28),
+            Size = new Size(42, 30),
             CornerRadius = 6,
             IsDanger = true
         };
@@ -246,7 +242,7 @@ public class AssemblySettingsForm : Form
         ToggleIconFields();
     }
 
-    private TextBox AddField(Panel parent, string labelText, ref int y,
+    private FluentTextBox AddField(Panel parent, string labelText, ref int y,
         int lblW, int fieldX, int fieldW, int rowH)
     {
         var lbl = new Label
@@ -260,14 +256,10 @@ public class AssemblySettingsForm : Form
         };
         parent.Controls.Add(lbl);
 
-        var txt = new TextBox
+        var txt = new FluentTextBox
         {
-            Location = new Point(fieldX, y + 2),
-            Size = new Size(fieldW, 26),
-            Font = Theme.FontBody,
-            BackColor = Theme.BgField,
-            ForeColor = Theme.TextPrimary,
-            BorderStyle = BorderStyle.FixedSingle
+            Location = new Point(fieldX, y),
+            Size = new Size(fieldW, 28)
         };
         parent.Controls.Add(txt);
 
@@ -283,8 +275,8 @@ public class AssemblySettingsForm : Form
 
         foreach (Control c in pnlAssemblyFields.Controls)
         {
-            if (c is TextBox tb)
-                tb.BackColor = on ? Theme.BgField : Color.FromArgb(24, 25, 30);
+            if (c is FluentTextBox ftb)
+                ftb.Enabled = on;
         }
     }
 
@@ -295,8 +287,8 @@ public class AssemblySettingsForm : Form
 
         foreach (Control c in pnlIconFields.Controls)
         {
-            if (c is TextBox tb)
-                tb.BackColor = on ? Theme.BgField : Color.FromArgb(24, 25, 30);
+            if (c is FluentTextBox ftb)
+                ftb.Enabled = on;
         }
     }
 
