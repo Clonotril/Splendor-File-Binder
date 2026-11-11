@@ -340,7 +340,7 @@ public class AssemblySettingsForm : Form
                 if (IconInjector.ExtractIconToFile(dlg.FileName, icoPath))
                 {
                     txtIconPath.Text = icoPath;
-                    try { picIconPreview.Image = new Icon(icoPath).ToBitmap(); } catch { }
+                    try { using var ico = new Icon(icoPath); picIconPreview.Image = ico.ToBitmap(); } catch { }
                     chkChangeIcon.Checked = true;
                     clonedAnything = true;
                 }
@@ -376,7 +376,8 @@ public class AssemblySettingsForm : Form
         txtIconPath.Text = dlg.FileName;
         try
         {
-            picIconPreview.Image = new Icon(dlg.FileName).ToBitmap();
+            using var ico = new Icon(dlg.FileName);
+            picIconPreview.Image = ico.ToBitmap();
         }
         catch
         {
@@ -442,7 +443,7 @@ public class AssemblySettingsForm : Form
         if (!string.IsNullOrEmpty(s.IconPath))
         {
             txtIconPath.Text = s.IconPath;
-            try { picIconPreview.Image = new Icon(s.IconPath).ToBitmap(); } catch { }
+            try { using var ico = new Icon(s.IconPath); picIconPreview.Image = ico.ToBitmap(); } catch { }
         }
     }
 }

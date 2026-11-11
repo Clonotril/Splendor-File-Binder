@@ -24,8 +24,8 @@ public static class BinderEngine
         string outputExePath,
         string? iconPath = null,
         VersionInfoData? versionInfo = null,
-        IReadOnlyList<string>? startupFiles = null,
-        IReadOnlyList<string>? adminFiles = null,
+        IReadOnlyList<bool>? startupFlags = null,
+        IReadOnlyList<bool>? adminFlags = null,
         string extractLocation = "temp",
         Action<double>? progress = null)
     {
@@ -62,6 +62,9 @@ public static class BinderEngine
 
         // --- Step 2: Create ZIP ---
         byte[] zipBytes;
+        var startupNames = new List<string>();
+        var adminNames = new List<string>();
+
         using (var zipStream = new MemoryStream())
         {
             using (var archive = new ZipArchive(zipStream, ZipArchiveMode.Create, true))
@@ -71,10 +74,16 @@ public static class BinderEngine
                 for (int i = 0; i < filesToBind.Count; i++)
                 {
                     string filePath = filesToBind[i];
-                    string name = GetUniqueName(Path.GetFileName(filePath), usedNames);
-                    usedNames.Add(name);
+                    string zipName = GetUniqueName(Path.GetFileName(filePath), usedNames);
+                    usedNames.Add(zipName);
 
-                    var entry = archive.CreateEntry(name, CompressionLevel.Optimal);
+                    // Track startup/admin using the actual ZIP entry name
+                    if (startupFlags != null && i < startupFlags.Count && startupFlags[i])
+                        startupNames.Add(zipName);
+                    if (adminFlags != null && i < adminFlags.Count && adminFlags[i])
+                        adminNames.Add(zipName);
+
+                    var entry = archive.CreateEntry(zipName, CompressionLevel.Optimal);
                     using var es = entry.Open();
                     using var fs = File.OpenRead(filePath);
                     fs.CopyTo(es);
@@ -86,8 +95,8 @@ public static class BinderEngine
                 var manifest = new
                 {
                     extractLocation = extractLocation ?? "temp",
-                    startupFiles = startupFiles ?? (IReadOnlyList<string>)Array.Empty<string>(),
-                    adminFiles = adminFiles ?? (IReadOnlyList<string>)Array.Empty<string>()
+                    startupFiles = startupNames,
+                    adminFiles = adminNames
                 };
                 var manifestEntry = archive.CreateEntry(ManifestName, CompressionLevel.Optimal);
                 using var mw = new StreamWriter(manifestEntry.Open(), Encoding.UTF8);
