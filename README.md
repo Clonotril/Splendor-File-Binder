@@ -23,8 +23,9 @@
 
 ## 🎬 Demo Video
 
-<!-- To render GitHub's inline video player card (like user-attachments), edit README.md on GitHub.com, remove the link below, and drag & drop assets/demo_video.mp4 into the editor -->
-[▶ Watch `demo_video.mp4`](assets/demo_video.mp4)
+https://github.com/user-attachments/assets/f307c7c6-e28c-4a29-a3ca-698802213ee2
+
+
 
 ---
 
