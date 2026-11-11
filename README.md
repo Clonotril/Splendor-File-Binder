@@ -12,8 +12,8 @@ When the bound executable is launched, it extracts and runs all embedded files a
 - **Assembly info injection** — Set product name, description, company, version, copyright, etc.
 - **Clone from EXE** — One-click clone of assembly info from any existing `.exe`
 - **Extract location** — Choose where files are extracted: `%TEMP%`, `%APPDATA%`, current directory, or `%PROGRAMDATA%`
-- **Windows startup** — Mark eligible files (`.exe`, `.bat`, `.vbs`, etc.) to be copied to the Windows Startup folder
-- **Run as Admin** — Mark individual files (`.exe`, `.bat`, `.cmd`, `.msi`, `.ps1`) to launch with a UAC elevation prompt
+- **Windows startup** — Mark eligible files (`.exe`, `.com`, `.scr`, `.bat`, `.cmd`, `.vbs`, `.js`, `.wsf`, `.ps1`, `.lnk`) to be copied to the Windows Startup folder
+- **Run as Admin** — Mark individual files (`.exe`, `.com`, `.scr`, `.msi`, `.bat`, `.cmd`, `.vbs`, `.js`, `.wsf`, `.ps1`, `.reg`, `.cpl`) to launch with a UAC elevation prompt
 - **Self-contained** — The release build produces standalone executables that require no .NET runtime on the target machine
 
 ---
@@ -100,8 +100,8 @@ dotnet build src\Binder\Binder.csproj -c Debug
 1. **Launch** `SplendorFileBinder.exe`
 2. **Stub Path** — Auto-detected if `SplendorFileStub.exe` is in the same folder. Otherwise, browse for it.
 3. **Add Files** — Click `➕ Add` to select files to bind
-4. **Startup** — Check the Startup column for any `.exe`/`.bat`/`.vbs` files you want added to Windows startup
-5. **Run as Admin** — Check the Admin column for any `.exe`/`.bat`/`.cmd`/`.msi`/`.ps1` files that need elevated privileges
+4. **Startup** — Check the Startup column for eligible files you want added to Windows startup
+5. **Run as Admin** — Check the Admin column for eligible files that need elevated privileges
 6. **Extract Location** — Choose where files are extracted on the target machine
 7. **Assembly Settings** *(optional)* — Click to set custom icon, version info, or clone from an existing exe
 8. **Bind** — Click `🔗 BIND`, choose where to save the output `.exe`

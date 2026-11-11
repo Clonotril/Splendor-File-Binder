@@ -26,13 +26,13 @@ public partial class MainForm : Form
     // File extensions eligible for Windows startup
     private static readonly HashSet<string> StartupExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".exe", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".lnk"
+        ".exe", ".com", ".scr", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".lnk"
     };
 
-    // File extensions eligible for Run as Admin
+    // File extensions eligible for Run as Admin (runas verb via ShellExecute)
     private static readonly HashSet<string> AdminExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
-        ".exe", ".bat", ".cmd", ".msi", ".ps1"
+        ".exe", ".com", ".scr", ".msi", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".reg", ".cpl"
     };
 
     public MainForm()
