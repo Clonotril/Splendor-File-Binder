@@ -118,6 +118,20 @@ public partial class MainForm : Form
         };
         pnlHeader.Controls.Add(lblBadge);
 
+        var btnAbout = new FluentButton
+        {
+            Text = "ⓘ About",
+            Location = new Point(ClientSize.Width - margin - 92, 17),
+            Size = new Size(92, 30),
+            CornerRadius = 6
+        };
+        btnAbout.Click += (_, _) =>
+        {
+            using var dlg = new AboutForm();
+            dlg.ShowDialog(this);
+        };
+        pnlHeader.Controls.Add(btnAbout);
+
         // ================================================================
         // 2. CONFIGURATION CARD (Stub Path, Metadata & Extract Location)
         // ================================================================
