@@ -1,35 +1,41 @@
-// ============================================================================
-// MainForm.cs - The WinForms GUI for Splendor File Binder
-// ============================================================================
+using System.Drawing.Drawing2D;
 
 namespace SplendorFileBinder;
 
 public partial class MainForm : Form
 {
-    private readonly DataGridView dgvFiles;
-    private readonly Button btnAdd;
-    private readonly Button btnRemove;
-    private readonly Button btnClear;
-    private readonly Button btnBind;
-    private readonly Label lblStatus;
-    private readonly ProgressBar progressBar;
-    private readonly Label lblTitle;
-    private readonly Label lblFileCount;
+    // Panels & Containers
+    private readonly Panel pnlHeader;
+    private readonly FluentCard cardStub;
+    private readonly FluentCard cardFiles;
+    private readonly FluentCard cardFooter;
+
+    // Controls
     private readonly TextBox txtStubPath;
-    private readonly Button btnAssemblySettings;
+    private readonly FluentButton btnBrowseStub;
+    private readonly FluentButton btnAssemblySettings;
     private readonly Label lblAssemblyStatus;
     private readonly ComboBox cmbExtractLocation;
+
+    private readonly DataGridView dgvFiles;
+    private readonly Label lblFileCount;
+    private readonly FluentButton btnAdd;
+    private readonly FluentButton btnRemove;
+    private readonly FluentButton btnClear;
+    private readonly FluentButton btnBind;
+
+    private readonly FluentProgressBar progressBar;
+    private readonly Label lblStatus;
+    private readonly Label lblStatusDot;
 
     private readonly List<string> filePaths = new();
     private AssemblySettings assemblySettings = new();
 
-    // File extensions eligible for Windows startup
     private static readonly HashSet<string> StartupExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".com", ".scr", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".lnk"
     };
 
-    // File extensions eligible for Run as Admin (runas verb via ShellExecute)
     private static readonly HashSet<string> AdminExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".exe", ".com", ".scr", ".msi", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".reg", ".cpl"
@@ -37,83 +43,133 @@ public partial class MainForm : Form
 
     public MainForm()
     {
-        // ---- Form Setup ----
+        // Window Setup
         Text = "Splendor File Binder";
-        ClientSize = new Size(700, 540);
+        ClientSize = new Size(780, 640);
+        MinimumSize = new Size(780, 640);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
-        BackColor = Color.FromArgb(30, 30, 30);
-        ForeColor = Color.White;
+        BackColor = Theme.BgWindow;
+        ForeColor = Theme.TextPrimary;
+        Font = Theme.FontBody;
+        AllowDrop = true;
+
+        // Apply dark title bar (Windows 11 / 10)
+        Theme.ApplyDarkTitleBar(Handle);
 
         string iconPath = Path.Combine(AppContext.BaseDirectory, "app.ico");
         if (File.Exists(iconPath))
             Icon = new Icon(iconPath);
 
-        int pad = 20;
-        int contentW = 700 - pad * 2;
-        int btnX = 700 - pad - 90;
-        int gridW = btnX - pad - 8;
+        // Window drag & drop
+        DragEnter += MainForm_DragEnter;
+        DragDrop += MainForm_DragDrop;
 
-        // ---- Title ----
-        lblTitle = new Label
+        int margin = 16;
+        int usableW = ClientSize.Width - (margin * 2);
+
+        // ================================================================
+        // 1. HEADER BAR
+        // ================================================================
+        pnlHeader = new Panel
         {
-            Text = "✦ SPLENDOR FILE BINDER ✦",
-            Font = new Font("Segoe UI", 18, FontStyle.Bold),
-            ForeColor = Color.FromArgb(0, 180, 255),
-            TextAlign = ContentAlignment.MiddleCenter,
             Dock = DockStyle.Top,
-            Height = 55,
-            Padding = new Padding(0, 10, 0, 0),
-            BackColor = Color.FromArgb(20, 20, 20)
+            Height = 64,
+            BackColor = Theme.BgHeader
         };
-        Controls.Add(lblTitle);
+        pnlHeader.Paint += PnlHeader_Paint;
+        Controls.Add(pnlHeader);
 
-        // ---- Stub Path ----
-        Controls.Add(new Label
+        var picLogo = new PictureBox
         {
-            Text = "Stub Path (SplendorFileStub.exe):",
-            Font = new Font("Segoe UI", 9), Location = new Point(pad, 66), AutoSize = true
-        });
+            Location = new Point(margin, 12),
+            Size = new Size(40, 40),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            BackColor = Color.Transparent
+        };
+        if (File.Exists(iconPath))
+        {
+            try { picLogo.Image = Image.FromFile(iconPath); } catch { }
+        }
+        pnlHeader.Controls.Add(picLogo);
+
+        var lblAppTitle = new Label
+        {
+            Text = "SPLENDOR FILE BINDER",
+            Font = Theme.FontHeaderTitle,
+            ForeColor = Theme.TextPrimary,
+            Location = new Point(margin + 48, 12),
+            AutoSize = true,
+            BackColor = Color.Transparent
+        };
+        pnlHeader.Controls.Add(lblAppTitle);
+
+        var lblBadge = new Label
+        {
+            Text = "v1.0 • FLUENT EDITION",
+            Font = Theme.FontBadge,
+            ForeColor = Theme.AccentCyan,
+            Location = new Point(margin + 50, 36),
+            AutoSize = true,
+            BackColor = Color.Transparent
+        };
+        pnlHeader.Controls.Add(lblBadge);
+
+        // ================================================================
+        // 2. CONFIGURATION CARD (Stub Path, Metadata & Extract Location)
+        // ================================================================
+        cardStub = new FluentCard
+        {
+            Location = new Point(margin, pnlHeader.Bottom + 14),
+            Size = new Size(usableW, 102),
+            CornerRadius = 8
+        };
+        Controls.Add(cardStub);
+
+        var lblStub = new Label
+        {
+            Text = "STUB ENGINE PATH",
+            Font = Theme.FontBadge,
+            ForeColor = Theme.TextMuted,
+            Location = new Point(14, 12),
+            AutoSize = true
+        };
+        cardStub.Controls.Add(lblStub);
 
         txtStubPath = new TextBox
         {
-            Location = new Point(pad, 88),
-            Size = new Size(gridW, 28),
-            Font = new Font("Consolas", 9),
-            BackColor = Color.FromArgb(45, 45, 45),
-            ForeColor = Color.White,
+            Location = new Point(14, 30),
+            Size = new Size(cardStub.Width - 14 - 100 - 12, 26),
+            Font = Theme.FontMono,
+            BackColor = Theme.BgField,
+            ForeColor = Theme.TextPrimary,
             BorderStyle = BorderStyle.FixedSingle,
             Text = FindDefaultStubPath()
         };
-        Controls.Add(txtStubPath);
+        cardStub.Controls.Add(txtStubPath);
 
-        var btnBrowseStub = new Button
+        btnBrowseStub = new FluentButton
         {
-            Text = "...", Location = new Point(btnX, 86), Size = new Size(90, 28),
-            FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(60, 60, 60),
-            ForeColor = Color.White, Font = new Font("Segoe UI", 9, FontStyle.Bold)
+            Text = "Browse...",
+            Location = new Point(cardStub.Width - 14 - 96, 29),
+            Size = new Size(96, 28)
         };
         btnBrowseStub.Click += (_, _) =>
         {
             using var dlg = new OpenFileDialog { Title = "Locate SplendorFileStub.exe", Filter = "Executable (*.exe)|*.exe" };
             if (dlg.ShowDialog() == DialogResult.OK) txtStubPath.Text = dlg.FileName;
         };
-        Controls.Add(btnBrowseStub);
+        cardStub.Controls.Add(btnBrowseStub);
 
-        // ---- Assembly Settings Button + Extract Location (same row) ----
-        btnAssemblySettings = new Button
+        // Row 2 of Config: Assembly Settings + Status + Extract Location
+        btnAssemblySettings = new FluentButton
         {
-            Text = "⚙  Assembly Settings",
-            Location = new Point(pad, 126),
-            Size = new Size(195, 32),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(50, 50, 60),
-            ForeColor = Color.FromArgb(0, 200, 255),
-            Font = new Font("Segoe UI", 9.5f),
-            Cursor = Cursors.Hand
+            Text = "⚙ Assembly & Icon",
+            Location = new Point(14, 64),
+            Size = new Size(160, 26),
+            CustomColor = Theme.AccentCyan
         };
-        btnAssemblySettings.FlatAppearance.BorderColor = Color.FromArgb(0, 120, 200);
         btnAssemblySettings.Click += (_, _) =>
         {
             using var dlg = new AssemblySettingsForm(assemblySettings);
@@ -123,64 +179,98 @@ public partial class MainForm : Form
                 UpdateAssemblyStatusLabel();
             }
         };
-        Controls.Add(btnAssemblySettings);
+        cardStub.Controls.Add(btnAssemblySettings);
 
-        lblAssemblyStatus = new Label
-        {
-            Text = "", Font = new Font("Segoe UI", 8, FontStyle.Italic),
-            ForeColor = Color.FromArgb(0, 200, 130),
-            Location = new Point(222, 133), Size = new Size(200, 18)
-        };
-        Controls.Add(lblAssemblyStatus);
+        int comboW = 190;
+        int comboX = cardStub.Width - 14 - comboW;
+        int lblExtractW = 75;
+        int lblExtractX = comboX - lblExtractW - 4;
 
-        // Extract location dropdown (right side of same row)
-        Controls.Add(new Label
+        var lblExtract = new Label
         {
             Text = "Extract to:",
-            Font = new Font("Segoe UI", 9),
-            ForeColor = Color.FromArgb(170, 170, 180),
-            Location = new Point(430, 132),
-            AutoSize = true
-        });
+            Font = Theme.FontSmall,
+            ForeColor = Theme.TextSecondary,
+            Location = new Point(lblExtractX, 68),
+            Size = new Size(lblExtractW, 20),
+            TextAlign = ContentAlignment.MiddleRight
+        };
+        cardStub.Controls.Add(lblExtract);
 
         cmbExtractLocation = new ComboBox
         {
-            Location = new Point(505, 128),
-            Size = new Size(175, 28),
-            Font = new Font("Segoe UI", 9),
-            BackColor = Color.FromArgb(45, 45, 50),
-            ForeColor = Color.White,
+            Location = new Point(comboX, 65),
+            Size = new Size(comboW, 24),
+            Font = Theme.FontBody,
+            BackColor = Theme.BgField,
+            ForeColor = Theme.TextPrimary,
             FlatStyle = FlatStyle.Flat,
             DropDownStyle = ComboBoxStyle.DropDownList
         };
         cmbExtractLocation.Items.AddRange(new object[]
         {
-            "Temp  (%TEMP%)",
-            "AppData  (%APPDATA%)",
-            "Current Directory  (may need Admin)",
-            "ProgramData  (Admin)",
+            "Temp (%TEMP%)",
+            "AppData (%APPDATA%)",
+            "Current Directory",
+            "ProgramData (Admin)"
         });
-        cmbExtractLocation.SelectedIndex = 0; // Temp is default
-        Controls.Add(cmbExtractLocation);
+        cmbExtractLocation.SelectedIndex = 0;
+        cardStub.Controls.Add(cmbExtractLocation);
 
-        // ---- File List Header ----
+        lblAssemblyStatus = new Label
+        {
+            Text = "",
+            Font = Theme.FontSmall,
+            ForeColor = Theme.AccentGreen,
+            Location = new Point(180, 68),
+            Size = new Size(Math.Max(50, lblExtractX - 186), 20),
+            AutoEllipsis = true,
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        cardStub.Controls.Add(lblAssemblyStatus);
+
+        // ================================================================
+        // 3. FILES CARD (List, Actions, Drag & Drop)
+        // ================================================================
+        cardFiles = new FluentCard
+        {
+            Location = new Point(margin, cardStub.Bottom + 12),
+            Size = new Size(usableW, 316),
+            CornerRadius = 8
+        };
+        Controls.Add(cardFiles);
+
         lblFileCount = new Label
         {
-            Text = "Files to bind: (0 files)",
-            Font = new Font("Segoe UI", 10),
-            Location = new Point(pad, 170),
+            Text = "FILES TO BIND  (0 files in list)",
+            Font = Theme.FontBadge,
+            ForeColor = Theme.TextMuted,
+            Location = new Point(14, 12),
             AutoSize = true
         };
-        Controls.Add(lblFileCount);
+        cardFiles.Controls.Add(lblFileCount);
 
-        // ---- DataGridView ----
+        var lblDropHint = new Label
+        {
+            Text = "💡 Drag & drop files directly anywhere into the grid",
+            Font = Theme.FontSmall,
+            ForeColor = Theme.TextMuted,
+            Location = new Point(usableW - 14 - 300, 12),
+            Size = new Size(300, 18),
+            TextAlign = ContentAlignment.TopRight
+        };
+        cardFiles.Controls.Add(lblDropHint);
+
+        int sideBtnW = 105;
+        int gridW = cardFiles.Width - 28 - sideBtnW - 12;
+
         dgvFiles = new DataGridView
         {
-            Location = new Point(pad, 194),
-            Size = new Size(gridW, 200),
-            BackgroundColor = Color.FromArgb(38, 38, 42),
-            GridColor = Color.FromArgb(52, 52, 58),
-            BorderStyle = BorderStyle.FixedSingle,
+            Location = new Point(14, 34),
+            Size = new Size(gridW, 266),
+            BackgroundColor = Theme.BgField,
+            GridColor = Theme.BorderSubtle,
+            BorderStyle = BorderStyle.None,
             CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal,
             RowHeadersVisible = false,
             AllowUserToAddRows = false,
@@ -190,47 +280,53 @@ public partial class MainForm : Form
             MultiSelect = true,
             EditMode = DataGridViewEditMode.EditOnEnter,
             ScrollBars = ScrollBars.Vertical,
-            Font = new Font("Segoe UI", 9.5f),
+            Font = Theme.FontBody,
             EnableHeadersVisualStyles = false,
-            ColumnHeadersHeight = 30,
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing
+            ColumnHeadersHeight = 32,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
+            AllowDrop = true
         };
-        dgvFiles.RowTemplate.Height = 28;
+        dgvFiles.RowTemplate.Height = 30;
+
+        Theme.EnableDoubleBuffering(dgvFiles);
+
+        dgvFiles.DragEnter += MainForm_DragEnter;
+        dgvFiles.DragDrop += MainForm_DragDrop;
 
         // Header style
         dgvFiles.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(32, 32, 38),
-            ForeColor = Color.FromArgb(160, 165, 175),
-            Font = new Font("Segoe UI Semibold", 9f),
-            SelectionBackColor = Color.FromArgb(32, 32, 38),
-            SelectionForeColor = Color.FromArgb(160, 165, 175),
-            Padding = new Padding(6, 0, 0, 0)
+            BackColor = Color.FromArgb(22, 24, 30),
+            ForeColor = Theme.TextSecondary,
+            Font = Theme.FontBodySemibold,
+            SelectionBackColor = Color.FromArgb(22, 24, 30),
+            SelectionForeColor = Theme.TextSecondary,
+            Padding = new Padding(8, 0, 0, 0)
         };
 
-        // Row style
+        // Grid-level default cell style
         dgvFiles.DefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(38, 38, 42),
-            ForeColor = Color.LightGreen,
-            SelectionBackColor = Color.FromArgb(0, 70, 120),
+            BackColor = Theme.BgField,
+            ForeColor = Theme.TextPrimary,
+            SelectionBackColor = Color.FromArgb(28, 48, 70),
             SelectionForeColor = Color.White,
-            Padding = new Padding(6, 0, 0, 0)
+            Padding = new Padding(8, 0, 0, 0)
         };
         dgvFiles.AlternatingRowsDefaultCellStyle = new DataGridViewCellStyle
         {
-            BackColor = Color.FromArgb(34, 34, 38),
-            ForeColor = Color.LightGreen,
-            SelectionBackColor = Color.FromArgb(0, 70, 120),
+            BackColor = Color.FromArgb(22, 25, 32),
+            ForeColor = Theme.TextPrimary,
+            SelectionBackColor = Color.FromArgb(28, 48, 70),
             SelectionForeColor = Color.White,
-            Padding = new Padding(6, 0, 0, 0)
+            Padding = new Padding(8, 0, 0, 0)
         };
 
         // Columns
         dgvFiles.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "FileName", HeaderText = "File Name",
-            Width = gridW - 90 - 70 - 70 - 22, ReadOnly = true,
+            Width = gridW - 90 - 75 - 75 - 18, ReadOnly = true,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
 
@@ -240,12 +336,12 @@ public partial class MainForm : Form
             ReadOnly = true, SortMode = DataGridViewColumnSortMode.NotSortable
         };
         colSize.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleRight;
-        colSize.DefaultCellStyle.ForeColor = Color.FromArgb(150, 155, 165);
+        colSize.DefaultCellStyle.ForeColor = Theme.TextSecondary;
         dgvFiles.Columns.Add(colSize);
 
         var colStartup = new DataGridViewCheckBoxColumn
         {
-            Name = "Startup", HeaderText = "Startup", Width = 70,
+            Name = "Startup", HeaderText = "Startup", Width = 75,
             SortMode = DataGridViewColumnSortMode.NotSortable,
             FalseValue = false, TrueValue = true
         };
@@ -254,64 +350,164 @@ public partial class MainForm : Form
 
         var colAdmin = new DataGridViewCheckBoxColumn
         {
-            Name = "Admin", HeaderText = "Admin", Width = 70,
+            Name = "Admin", HeaderText = "Admin", Width = 75,
             SortMode = DataGridViewColumnSortMode.NotSortable,
             FalseValue = false, TrueValue = true
         };
         colAdmin.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         dgvFiles.Columns.Add(colAdmin);
 
-        // Events to disable startup checkbox for non-eligible files
         dgvFiles.CellContentClick += DgvFiles_CellContentClick;
         dgvFiles.CellPainting += DgvFiles_CellPainting;
+        cardFiles.Controls.Add(dgvFiles);
 
-        Controls.Add(dgvFiles);
-
-        // ---- Side Buttons ----
-        btnAdd = MakeButton("➕ Add", btnX, 194);
-        btnAdd.Click += BtnAdd_Click;
-        Controls.Add(btnAdd);
-
-        btnRemove = MakeButton("➖", btnX, 240);
-        btnRemove.Click += BtnRemove_Click;
-        Controls.Add(btnRemove);
-
-        btnClear = MakeButton("🗑 Clear", btnX, 286);
-        btnClear.Click += BtnClear_Click;
-        Controls.Add(btnClear);
-
-        btnBind = new Button
+        // Action Buttons on Right
+        int btnX = cardFiles.Width - 14 - sideBtnW;
+        btnAdd = new FluentButton
         {
-            Text = "🔗 BIND",
-            Location = new Point(btnX, 350),
-            Size = new Size(90, 55),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(0, 140, 200),
-            ForeColor = Color.White,
-            Font = new Font("Segoe UI", 11, FontStyle.Bold)
+            Text = "+ Add Files",
+            Location = new Point(btnX, 34),
+            Size = new Size(sideBtnW, 34),
+            CornerRadius = 6
+        };
+        btnAdd.Click += BtnAdd_Click;
+        cardFiles.Controls.Add(btnAdd);
+
+        btnRemove = new FluentButton
+        {
+            Text = "− Remove",
+            Location = new Point(btnX, 74),
+            Size = new Size(sideBtnW, 32),
+            CornerRadius = 6
+        };
+        btnRemove.Click += BtnRemove_Click;
+        cardFiles.Controls.Add(btnRemove);
+
+        btnClear = new FluentButton
+        {
+            Text = "Clear All",
+            Location = new Point(btnX, 112),
+            Size = new Size(sideBtnW, 32),
+            IsDanger = true,
+            CornerRadius = 6
+        };
+        btnClear.Click += BtnClear_Click;
+        cardFiles.Controls.Add(btnClear);
+
+        // Huge primary Bind Button
+        btnBind = new FluentButton
+        {
+            Text = "⚡ BIND FILES",
+            Location = new Point(btnX, 244),
+            Size = new Size(sideBtnW, 56),
+            IsPrimary = true,
+            CornerRadius = 8,
+            Font = new Font("Segoe UI", 10.5f, FontStyle.Bold)
         };
         btnBind.Click += BtnBind_Click;
-        Controls.Add(btnBind);
+        cardFiles.Controls.Add(btnBind);
 
-        // ---- Progress Bar ----
-        progressBar = new ProgressBar
+        // ================================================================
+        // 4. FOOTER CARD (Progress & Status)
+        // ================================================================
+        cardFooter = new FluentCard
         {
-            Location = new Point(pad, 440),
-            Size = new Size(contentW, 20),
-            Style = ProgressBarStyle.Continuous, Minimum = 0, Maximum = 100
+            Location = new Point(margin, cardFiles.Bottom + 12),
+            Size = new Size(usableW, 64),
+            CornerRadius = 8
         };
-        Controls.Add(progressBar);
+        Controls.Add(cardFooter);
 
-        // ---- Status Label ----
+        progressBar = new FluentProgressBar
+        {
+            Location = new Point(14, 12),
+            Size = new Size(cardFooter.Width - 28, 6),
+            ProgressColor = Theme.AccentCyan
+        };
+        cardFooter.Controls.Add(progressBar);
+
+        lblStatusDot = new Label
+        {
+            Text = "●",
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = Theme.AccentGreen,
+            Location = new Point(14, 28),
+            Size = new Size(16, 20)
+        };
+        cardFooter.Controls.Add(lblStatusDot);
+
         lblStatus = new Label
         {
-            Text = "Ready. Add files and click BIND to create your executable.",
-            Font = new Font("Segoe UI", 9),
-            Location = new Point(pad, 466),
-            Size = new Size(contentW, 50),
-            ForeColor = Color.FromArgb(180, 180, 180)
+            Text = "Ready. Add files and click BIND to create your standalone executable.",
+            Font = Theme.FontBody,
+            Location = new Point(32, 28),
+            Size = new Size(cardFooter.Width - 46, 26),
+            ForeColor = Theme.TextSecondary
         };
-        Controls.Add(lblStatus);
+        cardFooter.Controls.Add(lblStatus);
+    }
+
+    private void PnlHeader_Paint(object? sender, PaintEventArgs e)
+    {
+        using var pen = new Pen(Theme.BorderSubtle, 1);
+        e.Graphics.DrawLine(pen, 0, pnlHeader.Height - 1, pnlHeader.Width, pnlHeader.Height - 1);
+    }
+
+    // ----------------------------------------------------------------
+    // Drag & Drop Handlers
+    // ----------------------------------------------------------------
+
+    private void MainForm_DragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
+            e.Effect = DragDropEffects.Copy;
+        else
+            e.Effect = DragDropEffects.None;
+    }
+
+    private void MainForm_DragDrop(object? sender, DragEventArgs e)
+    {
+        if (e.Data?.GetData(DataFormats.FileDrop) is string[] files)
+        {
+            AddFiles(files);
+        }
+    }
+
+    private void AddFiles(IEnumerable<string> files)
+    {
+        int addedCount = 0;
+        foreach (string file in files)
+        {
+            if (File.Exists(file) && !filePaths.Contains(file))
+            {
+                filePaths.Add(file);
+                int rowIndex = dgvFiles.Rows.Add(Path.GetFileName(file), FormatSize(new FileInfo(file).Length), false, false);
+                
+                // Explicitly set each row's styles so they can NEVER fall back to black
+                var row = dgvFiles.Rows[rowIndex];
+                Color rowBg = (rowIndex % 2 == 0) ? Theme.BgField : Color.FromArgb(22, 25, 32);
+                row.DefaultCellStyle.BackColor = rowBg;
+                row.DefaultCellStyle.ForeColor = Theme.TextPrimary;
+                row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(28, 48, 70);
+                row.DefaultCellStyle.SelectionForeColor = Color.White;
+
+                addedCount++;
+            }
+        }
+
+        UpdateFileCount();
+        dgvFiles.ClearSelection();
+        dgvFiles.Invalidate();
+        dgvFiles.Update();
+
+        if (addedCount > 0)
+        {
+            SetStatus($"Added {addedCount} file{(addedCount > 1 ? "s" : "")}. Total: {filePaths.Count} file{(filePaths.Count > 1 ? "s" : "")} in list.", Theme.AccentGreen);
+        }
+        else
+        {
+            SetStatus("No new files added (already in list or not found).", Theme.AccentAmber);
+        }
     }
 
     // ----------------------------------------------------------------
@@ -327,18 +523,20 @@ public partial class MainForm : Form
         if (colName == "Startup" && !StartupExtensions.Contains(ext))
         {
             BeginInvoke(() => dgvFiles.Rows[e.RowIndex].Cells["Startup"].Value = false);
-            SetStatus($"⚠ {ext} files cannot be added to startup.", Color.Orange);
+            SetStatus($"⚠ {ext} files cannot be registered for Windows startup.", Theme.AccentAmber);
         }
         else if (colName == "Admin" && !AdminExtensions.Contains(ext))
         {
             BeginInvoke(() => dgvFiles.Rows[e.RowIndex].Cells["Admin"].Value = false);
-            SetStatus($"⚠ {ext} files cannot run as admin.", Color.Orange);
+            SetStatus($"⚠ {ext} files cannot be run with elevated admin privileges.", Theme.AccentAmber);
         }
     }
 
     private void DgvFiles_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
     {
-        if (e.RowIndex < 0 || e.RowIndex >= filePaths.Count) return;
+        if (e.RowIndex < 0) return;
+        if (e.RowIndex >= filePaths.Count) return;
+
         string colName = dgvFiles.Columns[e.ColumnIndex].Name;
         string ext = Path.GetExtension(filePaths[e.RowIndex]);
 
@@ -347,13 +545,26 @@ public partial class MainForm : Form
 
         if (disabled)
         {
-            e.PaintBackground(e.CellBounds, true);
-            using var brush = new SolidBrush(Color.FromArgb(60, 60, 65));
-            using var font = new Font("Segoe UI", 8f);
-            var sz = e.Graphics!.MeasureString("—", font);
+            // Compute proper background color matching row or selection state
+            bool isRowSelected = (e.State & DataGridViewElementStates.Selected) != 0;
+            Color bg = isRowSelected ? Color.FromArgb(28, 48, 70)
+                     : (e.RowIndex % 2 == 0 ? Theme.BgField : Color.FromArgb(22, 25, 32));
+
+            using var bgBrush = new SolidBrush(bg);
+            e.Graphics!.FillRectangle(bgBrush, e.CellBounds);
+
+            // Draw single subtle bottom border
+            using var gridPen = new Pen(Theme.BorderSubtle, 1);
+            e.Graphics.DrawLine(gridPen, e.CellBounds.Left, e.CellBounds.Bottom - 1, e.CellBounds.Right, e.CellBounds.Bottom - 1);
+
+            // Draw centered dash using cell's font or fallback
+            Font dashFont = e.CellStyle?.Font ?? Font;
+            var sz = e.Graphics!.MeasureString("—", dashFont);
             float x = e.CellBounds.X + (e.CellBounds.Width - sz.Width) / 2;
             float y = e.CellBounds.Y + (e.CellBounds.Height - sz.Height) / 2;
-            e.Graphics.DrawString("—", font, brush, x, y);
+            using var dashBrush = new SolidBrush(Color.FromArgb(90, 95, 110));
+            e.Graphics.DrawString("—", dashFont, dashBrush, x, y);
+
             e.Handled = true;
         }
     }
@@ -371,14 +582,7 @@ public partial class MainForm : Form
             Multiselect = true
         };
         if (dlg.ShowDialog() != DialogResult.OK) return;
-
-        foreach (string file in dlg.FileNames)
-        {
-            if (filePaths.Contains(file)) continue;
-            filePaths.Add(file);
-            dgvFiles.Rows.Add(Path.GetFileName(file), FormatSize(new FileInfo(file).Length), false, false);
-        }
-        UpdateFileCount();
+        AddFiles(dlg.FileNames);
     }
 
     private void BtnRemove_Click(object? sender, EventArgs e)
@@ -386,23 +590,54 @@ public partial class MainForm : Form
         var indices = dgvFiles.SelectedRows.Cast<DataGridViewRow>()
             .Select(r => r.Index).Where(i => i >= 0 && i < filePaths.Count)
             .OrderByDescending(i => i).ToList();
-        foreach (int idx in indices) { filePaths.RemoveAt(idx); dgvFiles.Rows.RemoveAt(idx); }
+
+        foreach (int idx in indices)
+        {
+            filePaths.RemoveAt(idx);
+            dgvFiles.Rows.RemoveAt(idx);
+        }
+
+        // Re-index row background colors for alternating stripe consistency
+        for (int i = 0; i < dgvFiles.Rows.Count; i++)
+        {
+            Color rowBg = (i % 2 == 0) ? Theme.BgField : Color.FromArgb(22, 25, 32);
+            dgvFiles.Rows[i].DefaultCellStyle.BackColor = rowBg;
+            dgvFiles.Rows[i].DefaultCellStyle.ForeColor = Theme.TextPrimary;
+            dgvFiles.Rows[i].DefaultCellStyle.SelectionBackColor = Color.FromArgb(28, 48, 70);
+            dgvFiles.Rows[i].DefaultCellStyle.SelectionForeColor = Color.White;
+        }
+
         UpdateFileCount();
+        dgvFiles.Invalidate();
+        dgvFiles.Update();
+        SetStatus($"Removed {indices.Count} file(s). {filePaths.Count} file(s) remaining.", Theme.TextSecondary);
     }
 
     private void BtnClear_Click(object? sender, EventArgs e)
     {
+        if (filePaths.Count == 0) return;
         filePaths.Clear();
         dgvFiles.Rows.Clear();
         UpdateFileCount();
+        dgvFiles.Invalidate();
+        dgvFiles.Update();
+        SetStatus("File list cleared.", Theme.TextSecondary);
     }
 
     private async void BtnBind_Click(object? sender, EventArgs e)
     {
-        if (filePaths.Count == 0) { SetStatus("⚠ Add at least one file.", Color.Orange); return; }
+        if (filePaths.Count == 0)
+        {
+            SetStatus("⚠ Please add at least one file to bind.", Theme.AccentAmber);
+            return;
+        }
 
         string stubPath = txtStubPath.Text.Trim();
-        if (!File.Exists(stubPath)) { SetStatus("⚠ Stub not found.", Color.Orange); return; }
+        if (!File.Exists(stubPath))
+        {
+            SetStatus("⚠ SplendorFileStub.exe not found at specified path.", Theme.AccentRose);
+            return;
+        }
 
         using var saveDlg = new SaveFileDialog
         {
@@ -416,7 +651,6 @@ public partial class MainForm : Form
         string? iconPath = assemblySettings.ChangeIcon ? assemblySettings.IconPath : null;
         var versionInfo = assemblySettings.ChangeAssemblyInfo ? assemblySettings.VersionInfo : null;
 
-        // Collect startup files
         var startupFiles = new List<string>();
         var adminFiles = new List<string>();
         for (int i = 0; i < dgvFiles.Rows.Count && i < filePaths.Count; i++)
@@ -427,7 +661,6 @@ public partial class MainForm : Form
                 adminFiles.Add(Path.GetFileName(filePaths[i]));
         }
 
-        // Get extract location
         string extractLocation = cmbExtractLocation.SelectedIndex switch
         {
             1 => "appdata",
@@ -436,10 +669,9 @@ public partial class MainForm : Form
             _ => "temp"
         };
 
-        // Disable UI
         SetEnabled(false);
         progressBar.Value = 0;
-        SetStatus("⏳ Binding files...", Color.FromArgb(0, 180, 255));
+        SetStatus("Binding files into standalone executable...", Theme.AccentCyan);
 
         try
         {
@@ -453,23 +685,28 @@ public partial class MainForm : Form
             });
 
             long sz = new FileInfo(outputPath).Length;
-            SetStatus($"✅ Success! {Path.GetFileName(outputPath)} ({FormatSize(sz)})", Color.LightGreen);
             progressBar.Value = 100;
+            SetStatus($"Created: {Path.GetFileName(outputPath)} ({FormatSize(sz)})", Theme.AccentGreen);
 
             MessageBox.Show(
-                $"Bound executable created!\n\nOutput: {outputPath}\nSize: {FormatSize(sz)}\n" +
-                $"Files: {filePaths.Count}" +
-                (startupFiles.Count > 0 ? $"\nStartup: {startupFiles.Count}" : "") +
-                (adminFiles.Count > 0 ? $"\nRun as Admin: {adminFiles.Count}" : "") +
-                $"\nExtract to: {cmbExtractLocation.SelectedItem}",
+                $"Bound executable created successfully!\n\n" +
+                $"Output: {outputPath}\n" +
+                $"Size: {FormatSize(sz)}\n" +
+                $"Embedded Files: {filePaths.Count}\n" +
+                (startupFiles.Count > 0 ? $"Startup: {startupFiles.Count}\n" : "") +
+                (adminFiles.Count > 0 ? $"Run as Admin: {adminFiles.Count}\n" : "") +
+                $"Extract to: {cmbExtractLocation.SelectedItem}",
                 "Splendor File Binder", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
         {
-            SetStatus($"❌ Error: {ex.Message}", Color.OrangeRed);
+            SetStatus($"Error: {ex.Message}", Theme.AccentRose);
             progressBar.Value = 0;
         }
-        finally { SetEnabled(true); }
+        finally
+        {
+            SetEnabled(true);
+        }
     }
 
     // ----------------------------------------------------------------
@@ -478,14 +715,19 @@ public partial class MainForm : Form
 
     private void SetEnabled(bool on)
     {
-        btnBind.Enabled = on; btnAdd.Enabled = on;
-        btnRemove.Enabled = on; btnClear.Enabled = on;
-        btnAssemblySettings.Enabled = on; cmbExtractLocation.Enabled = on;
+        btnBind.Enabled = on;
+        btnAdd.Enabled = on;
+        btnRemove.Enabled = on;
+        btnClear.Enabled = on;
+        btnAssemblySettings.Enabled = on;
+        cmbExtractLocation.Enabled = on;
+        txtStubPath.Enabled = on;
+        btnBrowseStub.Enabled = on;
     }
 
     private void UpdateFileCount()
     {
-        lblFileCount.Text = $"Files to bind: ({filePaths.Count} file{(filePaths.Count != 1 ? "s" : "")})";
+        lblFileCount.Text = $"FILES TO BIND  ({filePaths.Count} file{(filePaths.Count != 1 ? "s" : "")} in list)";
     }
 
     private void UpdateAssemblyStatusLabel()
@@ -493,23 +735,20 @@ public partial class MainForm : Form
         var parts = new List<string>();
         if (assemblySettings.ChangeAssemblyInfo && assemblySettings.VersionInfo.HasAnyValue)
             parts.Add("📋 " + (assemblySettings.VersionInfo.FileDescription
-                ?? assemblySettings.VersionInfo.ProductName ?? "Custom"));
+                ?? assemblySettings.VersionInfo.ProductName ?? "Custom Info"));
         if (assemblySettings.ChangeIcon && !string.IsNullOrEmpty(assemblySettings.IconPath))
             parts.Add("🎨 " + Path.GetFileName(assemblySettings.IconPath));
 
         lblAssemblyStatus.Text = parts.Count > 0 ? string.Join(" · ", parts) : "";
-        lblAssemblyStatus.ForeColor = parts.Count > 0 ? Color.FromArgb(0, 200, 130) : Color.FromArgb(120, 120, 130);
+        lblAssemblyStatus.ForeColor = parts.Count > 0 ? Theme.AccentGreen : Theme.TextMuted;
     }
 
     private void SetStatus(string text, Color color)
-    { lblStatus.Text = text; lblStatus.ForeColor = color; }
-
-    private static Button MakeButton(string text, int x, int y) => new()
     {
-        Text = text, Location = new Point(x, y), Size = new Size(90, 35),
-        FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(55, 55, 55),
-        ForeColor = Color.White, Font = new Font("Segoe UI", 9)
-    };
+        lblStatus.Text = text;
+        lblStatus.ForeColor = color;
+        lblStatusDot.ForeColor = color;
+    }
 
     private static string FormatSize(long bytes)
     {

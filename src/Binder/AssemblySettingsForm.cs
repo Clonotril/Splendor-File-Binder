@@ -1,11 +1,4 @@
-// ============================================================================
-// AssemblySettingsForm.cs - Separate dialog for editing assembly/version info
-//
-// Allows the user to:
-//   - Manually type in version info fields (Product Name, Description, etc.)
-//   - Clone all fields from an existing exe with one click
-//   - Select a custom icon for the output exe
-// ============================================================================
+using System.Drawing.Drawing2D;
 
 namespace SplendorFileBinder;
 
@@ -32,62 +25,51 @@ public class AssemblySettingsForm : Form
     private readonly TextBox txtOriginalFilename;
     private readonly TextBox txtProductVersion;
     private readonly TextBox txtFileVersion;
-    private readonly Panel pnlAssemblyFields;
+    private readonly FluentCard pnlAssemblyFields;
 
     // Icon controls
     private readonly CheckBox chkChangeIcon;
     private readonly TextBox txtIconPath;
-    private readonly Button btnBrowseIcon;
-    private readonly Button btnClearIcon;
+    private readonly FluentButton btnBrowseIcon;
+    private readonly FluentButton btnClearIcon;
     private readonly PictureBox picIconPreview;
-    private readonly Panel pnlIconFields;
+    private readonly FluentCard pnlIconFields;
 
     // Action buttons
-    private readonly Button btnCloneFromExe;
-    private readonly Button btnOk;
-    private readonly Button btnCancel;
-    private readonly Button btnClearAll;
-
-    // Colors
-    private static readonly Color BgDark = Color.FromArgb(24, 24, 28);
-    private static readonly Color BgPanel = Color.FromArgb(36, 38, 44);
-    private static readonly Color BgField = Color.FromArgb(50, 52, 60);
-    private static readonly Color TextWhite = Color.FromArgb(230, 230, 235);
-    private static readonly Color TextLabel = Color.FromArgb(160, 165, 175);
-    private static readonly Color TextPlaceholder = Color.FromArgb(90, 95, 105);
-    private static readonly Color AccentBlue = Color.FromArgb(0, 160, 240);
-    private static readonly Color AccentGreen = Color.FromArgb(0, 200, 130);
-    private static readonly Color AccentOrange = Color.FromArgb(255, 180, 50);
+    private readonly FluentButton btnCloneFromExe;
+    private readonly FluentButton btnOk;
+    private readonly FluentButton btnCancel;
+    private readonly FluentButton btnClearAll;
 
     /// <summary>The result settings after the dialog is closed with OK.</summary>
     public AssemblySettings Result { get; private set; } = new();
 
     public AssemblySettingsForm(AssemblySettings? existing = null)
     {
-        // ---- Form Setup ----
-        Text = "Assembly Settings";
-        ClientSize = new Size(520, 570);
+        // Form Setup
+        Text = "Assembly & Metadata Settings";
+        ClientSize = new Size(540, 585);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         MinimizeBox = false;
         ShowInTaskbar = false;
-        BackColor = BgDark;
-        ForeColor = TextWhite;
-        Font = new Font("Segoe UI", 9.5f);
+        BackColor = Theme.BgWindow;
+        ForeColor = Theme.TextPrimary;
+        Font = Theme.FontBody;
 
-        int pad = 24;        // side padding
-        int cw = 520 - pad * 2; // content width
+        Theme.ApplyDarkTitleBar(Handle);
 
-        // ═══════════════════════════════════════════
-        // HEADER
-        // ═══════════════════════════════════════════
+        int pad = 20;
+        int cw = ClientSize.Width - (pad * 2);
+
+        // Header Title
         var lblHeader = new Label
         {
-            Text = "ASSEMBLY SETTINGS",
-            Font = new Font("Segoe UI Semibold", 13f),
-            ForeColor = AccentBlue,
-            Location = new Point(pad, 16),
+            Text = "ASSEMBLY & ICON SETTINGS",
+            Font = Theme.FontSectionTitle,
+            ForeColor = Theme.AccentCyan,
+            Location = new Point(pad, 14),
             AutoSize = true
         };
         Controls.Add(lblHeader);
@@ -96,62 +78,55 @@ public class AssemblySettingsForm : Form
         // ASSEMBLY INFORMATION SECTION
         // ═══════════════════════════════════════════
 
-        // Checkbox + Clone button row
         chkChangeAssembly = new CheckBox
         {
             Text = "  Change Assembly Information",
-            Font = new Font("Segoe UI Semibold", 10f),
-            ForeColor = AccentGreen,
-            Location = new Point(pad, 52),
+            Font = Theme.FontBodySemibold,
+            ForeColor = Theme.AccentGreen,
+            Location = new Point(pad, 42),
             AutoSize = true,
             Checked = existing?.ChangeAssemblyInfo ?? false
         };
         chkChangeAssembly.CheckedChanged += (_, _) => ToggleAssemblyFields();
         Controls.Add(chkChangeAssembly);
 
-        btnCloneFromExe = new Button
+        btnCloneFromExe = new FluentButton
         {
             Text = "📂 Clone from EXE",
-            Location = new Point(520 - pad - 145, 48),
+            Location = new Point(ClientSize.Width - pad - 145, 38),
             Size = new Size(145, 28),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = BgPanel,
-            ForeColor = Color.FromArgb(120, 190, 255),
-            Font = new Font("Segoe UI", 9f),
-            Cursor = Cursors.Hand
+            CornerRadius = 6,
+            CustomColor = Theme.AccentCyan
         };
-        btnCloneFromExe.FlatAppearance.BorderColor = Color.FromArgb(60, 70, 90);
         btnCloneFromExe.Click += BtnCloneFromExe_Click;
         Controls.Add(btnCloneFromExe);
 
-        // Fields panel with rounded feel (darker bg)
-        pnlAssemblyFields = new Panel
+        pnlAssemblyFields = new FluentCard
         {
-            Location = new Point(pad, 84),
-            Size = new Size(cw, 310),
-            BackColor = BgPanel
+            Location = new Point(pad, 72),
+            Size = new Size(cw, 320),
+            CornerRadius = 8
         };
         Controls.Add(pnlAssemblyFields);
 
-        // Create all assembly fields — labels LEFT, textboxes RIGHT with good gap
-        int y = 14;
-        int lblW = 130;
+        int y = 12;
+        int lblW = 125;
         int gap = 12;
         int fieldX = lblW + gap;
-        int fieldW = cw - fieldX - 16;
-        int rowH = 36;
+        int fieldW = cw - fieldX - 24;
+        int rowH = 37;
 
-        txtProductName     = AddField(pnlAssemblyFields, "Product Name",      ref y, lblW, fieldX, fieldW, rowH);
-        txtDescription     = AddField(pnlAssemblyFields, "Description",       ref y, lblW, fieldX, fieldW, rowH);
-        txtCompanyName     = AddField(pnlAssemblyFields, "Company Name",      ref y, lblW, fieldX, fieldW, rowH);
-        txtCopyright       = AddField(pnlAssemblyFields, "Copyright",         ref y, lblW, fieldX, fieldW, rowH);
-        txtTrademarks      = AddField(pnlAssemblyFields, "Trademarks",        ref y, lblW, fieldX, fieldW, rowH);
-        txtOriginalFilename= AddField(pnlAssemblyFields, "Original Filename", ref y, lblW, fieldX, fieldW, rowH);
-        txtProductVersion  = AddField(pnlAssemblyFields, "Product Version",   ref y, lblW, fieldX, fieldW, rowH);
-        txtFileVersion     = AddField(pnlAssemblyFields, "File Version",      ref y, lblW, fieldX, fieldW, rowH);
+        txtProductName      = AddField(pnlAssemblyFields, "Product Name",      ref y, lblW, fieldX, fieldW, rowH);
+        txtDescription      = AddField(pnlAssemblyFields, "Description",       ref y, lblW, fieldX, fieldW, rowH);
+        txtCompanyName      = AddField(pnlAssemblyFields, "Company Name",      ref y, lblW, fieldX, fieldW, rowH);
+        txtCopyright        = AddField(pnlAssemblyFields, "Copyright",         ref y, lblW, fieldX, fieldW, rowH);
+        txtTrademarks       = AddField(pnlAssemblyFields, "Trademarks",        ref y, lblW, fieldX, fieldW, rowH);
+        txtOriginalFilename = AddField(pnlAssemblyFields, "Original Filename", ref y, lblW, fieldX, fieldW, rowH);
+        txtProductVersion   = AddField(pnlAssemblyFields, "Product Version",   ref y, lblW, fieldX, fieldW, rowH);
+        txtFileVersion      = AddField(pnlAssemblyFields, "File Version",      ref y, lblW, fieldX, fieldW, rowH);
 
-        txtProductVersion.PlaceholderText = "e.g.  1.0.0.0";
-        txtFileVersion.PlaceholderText    = "e.g.  1.0.0.0";
+        txtProductVersion.PlaceholderText = "e.g. 1.0.0.0";
+        txtFileVersion.PlaceholderText    = "e.g. 1.0.0.0";
 
         // ═══════════════════════════════════════════
         // ASSEMBLY ICON SECTION
@@ -159,30 +134,29 @@ public class AssemblySettingsForm : Form
 
         chkChangeIcon = new CheckBox
         {
-            Text = "  Change Assembly Icon",
-            Font = new Font("Segoe UI Semibold", 10f),
-            ForeColor = AccentOrange,
-            Location = new Point(pad, 406),
+            Text = "  Change Assembly Icon (.ico)",
+            Font = Theme.FontBodySemibold,
+            ForeColor = Theme.AccentAmber,
+            Location = new Point(pad, 404),
             AutoSize = true,
             Checked = existing?.ChangeIcon ?? false
         };
         chkChangeIcon.CheckedChanged += (_, _) => ToggleIconFields();
         Controls.Add(chkChangeIcon);
 
-        pnlIconFields = new Panel
+        pnlIconFields = new FluentCard
         {
-            Location = new Point(pad, 436),
-            Size = new Size(cw, 68),
-            BackColor = BgPanel
+            Location = new Point(pad, 432),
+            Size = new Size(cw, 72),
+            CornerRadius = 8
         };
         Controls.Add(pnlIconFields);
 
-        // Icon preview
         picIconPreview = new PictureBox
         {
-            Location = new Point(14, 10),
+            Location = new Point(14, 12),
             Size = new Size(48, 48),
-            BackColor = BgField,
+            BackColor = Theme.BgField,
             SizeMode = PictureBoxSizeMode.Zoom,
             BorderStyle = BorderStyle.FixedSingle
         };
@@ -190,44 +164,35 @@ public class AssemblySettingsForm : Form
 
         txtIconPath = new TextBox
         {
-            Location = new Point(74, 18),
-            Size = new Size(cw - 74 - 16 - 90 - 8 - 44, 28),
-            Font = new Font("Segoe UI", 9f),
-            BackColor = BgField,
-            ForeColor = TextWhite,
+            Location = new Point(72, 22),
+            Size = new Size(cw - 72 - 14 - 90 - 8 - 42, 26),
+            Font = Theme.FontBody,
+            BackColor = Theme.BgField,
+            ForeColor = Theme.TextPrimary,
             BorderStyle = BorderStyle.FixedSingle,
-            PlaceholderText = "Select a .ico file...",
+            PlaceholderText = "Select an .ico file...",
             ReadOnly = true
         };
         pnlIconFields.Controls.Add(txtIconPath);
 
-        btnBrowseIcon = new Button
+        btnBrowseIcon = new FluentButton
         {
             Text = "Browse...",
-            Location = new Point(cw - 16 - 90 - 8 - 44, 16),
-            Size = new Size(86, 30),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = BgField,
-            ForeColor = TextWhite,
-            Font = new Font("Segoe UI", 9f),
-            Cursor = Cursors.Hand
+            Location = new Point(cw - 14 - 90 - 8 - 42, 21),
+            Size = new Size(90, 28),
+            CornerRadius = 6
         };
-        btnBrowseIcon.FlatAppearance.BorderColor = Color.FromArgb(70, 75, 85);
         btnBrowseIcon.Click += BtnBrowseIcon_Click;
         pnlIconFields.Controls.Add(btnBrowseIcon);
 
-        btnClearIcon = new Button
+        btnClearIcon = new FluentButton
         {
             Text = "✕",
-            Location = new Point(cw - 16 - 44, 16),
-            Size = new Size(40, 30),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = BgField,
-            ForeColor = Color.FromArgb(255, 100, 100),
-            Font = new Font("Segoe UI", 10f, FontStyle.Bold),
-            Cursor = Cursors.Hand
+            Location = new Point(cw - 14 - 42, 21),
+            Size = new Size(42, 28),
+            CornerRadius = 6,
+            IsDanger = true
         };
-        btnClearIcon.FlatAppearance.BorderColor = Color.FromArgb(70, 75, 85);
         btnClearIcon.Click += (_, _) =>
         {
             txtIconPath.Text = "";
@@ -239,64 +204,41 @@ public class AssemblySettingsForm : Form
         // BOTTOM BUTTONS
         // ═══════════════════════════════════════════
 
-        // Separator line
-        var line = new Panel
+        btnClearAll = new FluentButton
         {
-            BackColor = Color.FromArgb(50, 55, 65),
-            Location = new Point(pad, 516),
-            Size = new Size(cw, 1)
+            Text = "Clear All",
+            Location = new Point(pad, 524),
+            Size = new Size(110, 36),
+            IsDanger = true,
+            CornerRadius = 6
         };
-        Controls.Add(line);
-
-        btnClearAll = new Button
-        {
-            Text = "🗑  Clear All",
-            Location = new Point(pad, 528),
-            Size = new Size(115, 38),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(60, 30, 30),
-            ForeColor = Color.FromArgb(255, 120, 120),
-            Font = new Font("Segoe UI", 9.5f),
-            Cursor = Cursors.Hand
-        };
-        btnClearAll.FlatAppearance.BorderColor = Color.FromArgb(120, 50, 50);
         btnClearAll.Click += BtnClearAll_Click;
         Controls.Add(btnClearAll);
 
-        btnCancel = new Button
+        btnCancel = new FluentButton
         {
             Text = "Cancel",
-            Location = new Point(520 - pad - 100 - 10 - 110, 528),
-            Size = new Size(100, 38),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.FromArgb(50, 52, 60),
-            ForeColor = TextWhite,
-            Font = new Font("Segoe UI", 10f),
-            DialogResult = DialogResult.Cancel,
-            Cursor = Cursors.Hand
+            Location = new Point(ClientSize.Width - pad - 100 - 10 - 110, 524),
+            Size = new Size(100, 36),
+            CornerRadius = 6,
+            DialogResult = DialogResult.Cancel
         };
-        btnCancel.FlatAppearance.BorderColor = Color.FromArgb(70, 75, 85);
         Controls.Add(btnCancel);
 
-        btnOk = new Button
+        btnOk = new FluentButton
         {
-            Text = "✔  Apply",
-            Location = new Point(520 - pad - 110, 528),
-            Size = new Size(110, 38),
-            FlatStyle = FlatStyle.Flat,
-            BackColor = AccentBlue,
-            ForeColor = Color.White,
-            Font = new Font("Segoe UI Semibold", 10.5f),
-            Cursor = Cursors.Hand
+            Text = "✔ Apply",
+            Location = new Point(ClientSize.Width - pad - 110, 524),
+            Size = new Size(110, 36),
+            IsPrimary = true,
+            CornerRadius = 6
         };
-        btnOk.FlatAppearance.BorderColor = AccentBlue;
         btnOk.Click += BtnOk_Click;
         Controls.Add(btnOk);
 
         AcceptButton = btnOk;
         CancelButton = btnCancel;
 
-        // ── Load existing values ──
         if (existing != null)
             LoadSettings(existing);
 
@@ -304,19 +246,15 @@ public class AssemblySettingsForm : Form
         ToggleIconFields();
     }
 
-    // ----------------------------------------------------------------
-    // Field creation helper — label on left, textbox on right
-    // ----------------------------------------------------------------
-
     private TextBox AddField(Panel parent, string labelText, ref int y,
         int lblW, int fieldX, int fieldW, int rowH)
     {
         var lbl = new Label
         {
             Text = labelText,
-            Font = new Font("Segoe UI", 9.5f),
-            ForeColor = TextLabel,
-            Location = new Point(14, y + 5),
+            Font = Theme.FontBody,
+            ForeColor = Theme.TextSecondary,
+            Location = new Point(14, y + 4),
             Size = new Size(lblW, 20),
             TextAlign = ContentAlignment.MiddleLeft
         };
@@ -325,10 +263,10 @@ public class AssemblySettingsForm : Form
         var txt = new TextBox
         {
             Location = new Point(fieldX, y + 2),
-            Size = new Size(fieldW, 28),
-            Font = new Font("Segoe UI", 9.5f),
-            BackColor = BgField,
-            ForeColor = TextWhite,
+            Size = new Size(fieldW, 26),
+            Font = Theme.FontBody,
+            BackColor = Theme.BgField,
+            ForeColor = Theme.TextPrimary,
             BorderStyle = BorderStyle.FixedSingle
         };
         parent.Controls.Add(txt);
@@ -337,21 +275,16 @@ public class AssemblySettingsForm : Form
         return txt;
     }
 
-    // ----------------------------------------------------------------
-    // Enable / disable sections
-    // ----------------------------------------------------------------
-
     private void ToggleAssemblyFields()
     {
         bool on = chkChangeAssembly.Checked;
         pnlAssemblyFields.Enabled = on;
         btnCloneFromExe.Enabled = on;
 
-        // Dim the panel when disabled
         foreach (Control c in pnlAssemblyFields.Controls)
         {
             if (c is TextBox tb)
-                tb.BackColor = on ? BgField : Color.FromArgb(32, 34, 38);
+                tb.BackColor = on ? Theme.BgField : Color.FromArgb(24, 25, 30);
         }
     }
 
@@ -363,19 +296,15 @@ public class AssemblySettingsForm : Form
         foreach (Control c in pnlIconFields.Controls)
         {
             if (c is TextBox tb)
-                tb.BackColor = on ? BgField : Color.FromArgb(32, 34, 38);
+                tb.BackColor = on ? Theme.BgField : Color.FromArgb(24, 25, 30);
         }
     }
-
-    // ----------------------------------------------------------------
-    // Button handlers
-    // ----------------------------------------------------------------
 
     private void BtnCloneFromExe_Click(object? sender, EventArgs e)
     {
         using var dlg = new OpenFileDialog
         {
-            Title = "Select an exe/dll to clone assembly info from",
+            Title = "Select an executable or DLL to clone metadata from",
             Filter = "Executables (*.exe)|*.exe|Libraries (*.dll)|*.dll|All Files (*.*)|*.*"
         };
 
@@ -386,7 +315,7 @@ public class AssemblySettingsForm : Form
             var vi = VersionInfoData.FromExe(dlg.FileName);
             if (vi == null || !vi.HasAnyValue)
             {
-                MessageBox.Show("No version info found in this file.", "Clone",
+                MessageBox.Show("No version information found in this file.", "Clone Metadata",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
@@ -404,7 +333,7 @@ public class AssemblySettingsForm : Form
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Error reading file:\n{ex.Message}", "Clone Error",
+            MessageBox.Show($"Error reading metadata:\n{ex.Message}", "Clone Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -413,7 +342,7 @@ public class AssemblySettingsForm : Form
     {
         using var dlg = new OpenFileDialog
         {
-            Title = "Select an icon for the output exe",
+            Title = "Select an icon for the output executable",
             Filter = "Icon Files (*.ico)|*.ico"
         };
 
@@ -473,10 +402,6 @@ public class AssemblySettingsForm : Form
         Close();
     }
 
-    // ----------------------------------------------------------------
-    // Load existing settings
-    // ----------------------------------------------------------------
-
     private void LoadSettings(AssemblySettings s)
     {
         chkChangeAssembly.Checked = s.ChangeAssemblyInfo;
@@ -494,6 +419,5 @@ public class AssemblySettingsForm : Form
             txtIconPath.Text = s.IconPath;
             try { picIconPreview.Image = new Icon(s.IconPath).ToBitmap(); } catch { }
         }
-
     }
 }

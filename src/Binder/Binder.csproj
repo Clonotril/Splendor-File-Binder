@@ -9,6 +9,7 @@
     <RootNamespace>SplendorFileBinder</RootNamespace>
     <AssemblyName>SplendorFileBinder</AssemblyName>
     <ApplicationIcon>app.ico</ApplicationIcon>
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
