@@ -106,7 +106,7 @@ public partial class MainForm : Form
         pnlHeader.Controls.Add(lblAppTitle);
 
         string appVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version is { } v
-            ? $"v{v.Major}.{v.Minor}" : "v1.0";
+            ? $"v{v.Major}.{v.Minor}.{v.Build}" : "v1.0.0";
         var lblBadge = new Label
         {
             Text = $"{appVersion} • FLUENT EDITION",

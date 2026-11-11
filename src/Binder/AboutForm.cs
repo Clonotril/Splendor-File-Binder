@@ -93,7 +93,7 @@ public class AboutForm : Form
         cardApp.Controls.Add(lblTitle);
 
         string appVersion = Assembly.GetExecutingAssembly().GetName().Version is { } v
-            ? $"v{v.Major}.{v.Minor}" : "v1.0";
+            ? $"v{v.Major}.{v.Minor}.{v.Build}" : "v1.0.0";
         var lblVersion = new Label
         {
             Text = $"{appVersion} • FLUENT EDITION • .NET 10 (win-x64)",
