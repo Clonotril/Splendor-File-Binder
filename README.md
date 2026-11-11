@@ -61,6 +61,8 @@ https://github.com/user-attachments/assets/f307c7c6-e28c-4a29-a3ca-698802213ee2
 
 > **Important:** Keep `SplendorFileStub.exe` and `rcedit.exe` in the same folder as `SplendorFileBinder.exe` so the Binder detects them automatically on startup.
 
+> **Windows SmartScreen Note:** Because the release binary is unsigned, Windows may show *"Windows protected your PC"* on first launch. Click **More info → Run anyway**, or right-click the downloaded `.zip` before extracting → **Properties** → check **Unblock** → **Apply** (or run `Unblock-File .\SplendorFileBinder-v1.0-win-x64.zip` in PowerShell). You can also verify the archive SHA-256 or build directly from source.
+
 ---
 
 ## Usage Guide
