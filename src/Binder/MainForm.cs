@@ -29,6 +29,12 @@ public partial class MainForm : Form
         ".exe", ".bat", ".cmd", ".vbs", ".js", ".wsf", ".ps1", ".lnk"
     };
 
+    // File extensions eligible for Run as Admin
+    private static readonly HashSet<string> AdminExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".bat", ".cmd", ".msi", ".ps1"
+    };
+
     public MainForm()
     {
         // ---- Form Setup ----
@@ -220,7 +226,7 @@ public partial class MainForm : Form
         dgvFiles.Columns.Add(new DataGridViewTextBoxColumn
         {
             Name = "FileName", HeaderText = "File Name",
-            Width = gridW - 90 - 70 - 22, ReadOnly = true,
+            Width = gridW - 90 - 70 - 70 - 22, ReadOnly = true,
             SortMode = DataGridViewColumnSortMode.NotSortable
         });
 
@@ -241,6 +247,15 @@ public partial class MainForm : Form
         };
         colStartup.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         dgvFiles.Columns.Add(colStartup);
+
+        var colAdmin = new DataGridViewCheckBoxColumn
+        {
+            Name = "Admin", HeaderText = "Admin", Width = 70,
+            SortMode = DataGridViewColumnSortMode.NotSortable,
+            FalseValue = false, TrueValue = true
+        };
+        colAdmin.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        dgvFiles.Columns.Add(colAdmin);
 
         // Events to disable startup checkbox for non-eligible files
         dgvFiles.CellContentClick += DgvFiles_CellContentClick;
@@ -302,26 +317,31 @@ public partial class MainForm : Form
     private void DgvFiles_CellContentClick(object? sender, DataGridViewCellEventArgs e)
     {
         if (e.RowIndex < 0 || e.RowIndex >= filePaths.Count) return;
-        if (dgvFiles.Columns[e.ColumnIndex].Name != "Startup") return;
-
+        string colName = dgvFiles.Columns[e.ColumnIndex].Name;
         string ext = Path.GetExtension(filePaths[e.RowIndex]);
-        if (!StartupExtensions.Contains(ext))
+
+        if (colName == "Startup" && !StartupExtensions.Contains(ext))
         {
-            BeginInvoke(() =>
-            {
-                dgvFiles.Rows[e.RowIndex].Cells["Startup"].Value = false;
-            });
+            BeginInvoke(() => dgvFiles.Rows[e.RowIndex].Cells["Startup"].Value = false);
             SetStatus($"⚠ {ext} files cannot be added to startup.", Color.Orange);
+        }
+        else if (colName == "Admin" && !AdminExtensions.Contains(ext))
+        {
+            BeginInvoke(() => dgvFiles.Rows[e.RowIndex].Cells["Admin"].Value = false);
+            SetStatus($"⚠ {ext} files cannot run as admin.", Color.Orange);
         }
     }
 
     private void DgvFiles_CellPainting(object? sender, DataGridViewCellPaintingEventArgs e)
     {
         if (e.RowIndex < 0 || e.RowIndex >= filePaths.Count) return;
-        if (dgvFiles.Columns[e.ColumnIndex].Name != "Startup") return;
-
+        string colName = dgvFiles.Columns[e.ColumnIndex].Name;
         string ext = Path.GetExtension(filePaths[e.RowIndex]);
-        if (!StartupExtensions.Contains(ext))
+
+        bool disabled = (colName == "Startup" && !StartupExtensions.Contains(ext)) ||
+                        (colName == "Admin" && !AdminExtensions.Contains(ext));
+
+        if (disabled)
         {
             e.PaintBackground(e.CellBounds, true);
             using var brush = new SolidBrush(Color.FromArgb(60, 60, 65));
@@ -352,7 +372,7 @@ public partial class MainForm : Form
         {
             if (filePaths.Contains(file)) continue;
             filePaths.Add(file);
-            dgvFiles.Rows.Add(Path.GetFileName(file), FormatSize(new FileInfo(file).Length), false);
+            dgvFiles.Rows.Add(Path.GetFileName(file), FormatSize(new FileInfo(file).Length), false, false);
         }
         UpdateFileCount();
     }
@@ -394,10 +414,13 @@ public partial class MainForm : Form
 
         // Collect startup files
         var startupFiles = new List<string>();
+        var adminFiles = new List<string>();
         for (int i = 0; i < dgvFiles.Rows.Count && i < filePaths.Count; i++)
         {
             if (dgvFiles.Rows[i].Cells["Startup"].Value is true)
                 startupFiles.Add(Path.GetFileName(filePaths[i]));
+            if (dgvFiles.Rows[i].Cells["Admin"].Value is true)
+                adminFiles.Add(Path.GetFileName(filePaths[i]));
         }
 
         // Get extract location
@@ -420,8 +443,8 @@ public partial class MainForm : Form
             {
                 BinderEngine.Bind(stubPath, filePaths, outputPath,
                     iconPath: iconPath, versionInfo: versionInfo,
-                    startupFiles: startupFiles, extractLocation: extractLocation,
-                    requireAdmin: assemblySettings.RequireAdmin,
+                    startupFiles: startupFiles, adminFiles: adminFiles,
+                    extractLocation: extractLocation,
                     progress: p => Invoke(() => progressBar.Value = (int)(p * 100)));
             });
 
@@ -433,6 +456,7 @@ public partial class MainForm : Form
                 $"Bound executable created!\n\nOutput: {outputPath}\nSize: {FormatSize(sz)}\n" +
                 $"Files: {filePaths.Count}" +
                 (startupFiles.Count > 0 ? $"\nStartup: {startupFiles.Count}" : "") +
+                (adminFiles.Count > 0 ? $"\nRun as Admin: {adminFiles.Count}" : "") +
                 $"\nExtract to: {cmbExtractLocation.SelectedItem}",
                 "Splendor File Binder", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
@@ -468,8 +492,6 @@ public partial class MainForm : Form
                 ?? assemblySettings.VersionInfo.ProductName ?? "Custom"));
         if (assemblySettings.ChangeIcon && !string.IsNullOrEmpty(assemblySettings.IconPath))
             parts.Add("🎨 " + Path.GetFileName(assemblySettings.IconPath));
-        if (assemblySettings.RequireAdmin)
-            parts.Add("🛡 Admin");
 
         lblAssemblyStatus.Text = parts.Count > 0 ? string.Join(" · ", parts) : "";
         lblAssemblyStatus.ForeColor = parts.Count > 0 ? Color.FromArgb(0, 200, 130) : Color.FromArgb(120, 120, 130);

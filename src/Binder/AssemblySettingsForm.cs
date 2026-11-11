@@ -18,7 +18,6 @@ public class AssemblySettings
     public VersionInfoData VersionInfo { get; set; } = new();
     public bool ChangeIcon { get; set; }
     public string? IconPath { get; set; }
-    public bool RequireAdmin { get; set; }
 }
 
 public class AssemblySettingsForm : Form
@@ -42,9 +41,6 @@ public class AssemblySettingsForm : Form
     private readonly Button btnClearIcon;
     private readonly PictureBox picIconPreview;
     private readonly Panel pnlIconFields;
-
-    // Admin control
-    private readonly CheckBox chkRequireAdmin;
 
     // Action buttons
     private readonly Button btnCloneFromExe;
@@ -70,7 +66,7 @@ public class AssemblySettingsForm : Form
     {
         // ---- Form Setup ----
         Text = "Assembly Settings";
-        ClientSize = new Size(520, 630);
+        ClientSize = new Size(520, 570);
         StartPosition = FormStartPosition.CenterParent;
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -240,21 +236,6 @@ public class AssemblySettingsForm : Form
         pnlIconFields.Controls.Add(btnClearIcon);
 
         // ═══════════════════════════════════════════
-        // REQUIRE ADMIN (UAC) SECTION
-        // ═══════════════════════════════════════════
-
-        chkRequireAdmin = new CheckBox
-        {
-            Text = "  🛡  Require Administrator (UAC prompt on launch)",
-            Font = new Font("Segoe UI Semibold", 9.5f),
-            ForeColor = Color.FromArgb(220, 80, 80),
-            Location = new Point(pad, 518),
-            AutoSize = true,
-            Checked = existing?.RequireAdmin ?? false
-        };
-        Controls.Add(chkRequireAdmin);
-
-        // ═══════════════════════════════════════════
         // BOTTOM BUTTONS
         // ═══════════════════════════════════════════
 
@@ -262,7 +243,7 @@ public class AssemblySettingsForm : Form
         var line = new Panel
         {
             BackColor = Color.FromArgb(50, 55, 65),
-            Location = new Point(pad, 550),
+            Location = new Point(pad, 516),
             Size = new Size(cw, 1)
         };
         Controls.Add(line);
@@ -270,7 +251,7 @@ public class AssemblySettingsForm : Form
         btnClearAll = new Button
         {
             Text = "🗑  Clear All",
-            Location = new Point(pad, 565),
+            Location = new Point(pad, 528),
             Size = new Size(115, 38),
             FlatStyle = FlatStyle.Flat,
             BackColor = Color.FromArgb(60, 30, 30),
@@ -285,7 +266,7 @@ public class AssemblySettingsForm : Form
         btnCancel = new Button
         {
             Text = "Cancel",
-            Location = new Point(520 - pad - 100 - 10 - 110, 565),
+            Location = new Point(520 - pad - 100 - 10 - 110, 528),
             Size = new Size(100, 38),
             FlatStyle = FlatStyle.Flat,
             BackColor = Color.FromArgb(50, 52, 60),
@@ -300,7 +281,7 @@ public class AssemblySettingsForm : Form
         btnOk = new Button
         {
             Text = "✔  Apply",
-            Location = new Point(520 - pad - 110, 565),
+            Location = new Point(520 - pad - 110, 528),
             Size = new Size(110, 38),
             FlatStyle = FlatStyle.Flat,
             BackColor = AccentBlue,
@@ -464,7 +445,6 @@ public class AssemblySettingsForm : Form
         picIconPreview.Image = null;
         chkChangeAssembly.Checked = false;
         chkChangeIcon.Checked = false;
-        chkRequireAdmin.Checked = false;
     }
 
     private void BtnOk_Click(object? sender, EventArgs e)
@@ -486,8 +466,7 @@ public class AssemblySettingsForm : Form
             ChangeIcon = chkChangeIcon.Checked,
             IconPath = chkChangeIcon.Checked && !string.IsNullOrWhiteSpace(txtIconPath.Text)
                 ? txtIconPath.Text.Trim()
-                : null,
-            RequireAdmin = chkRequireAdmin.Checked
+                : null
         };
 
         DialogResult = DialogResult.OK;
@@ -516,6 +495,5 @@ public class AssemblySettingsForm : Form
             try { picIconPreview.Image = new Icon(s.IconPath).ToBitmap(); } catch { }
         }
 
-        chkRequireAdmin.Checked = s.RequireAdmin;
     }
 }

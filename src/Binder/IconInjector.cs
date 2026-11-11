@@ -97,16 +97,16 @@ public static class IconInjector
         => ModifyResources(exePath, iconPath, null);
 
     /// <summary>
-    /// Modifies PE resources: sets icon, version info, and/or execution level.
+    /// Modifies PE resources: sets icon and/or version info.
     /// </summary>
-    public static void ModifyResources(string exePath, string? iconPath, VersionInfoData? versionInfo, bool requireAdmin = false)
+    public static void ModifyResources(string exePath, string? iconPath, VersionInfoData? versionInfo)
     {
         if (!string.IsNullOrEmpty(iconPath) && !File.Exists(iconPath))
             throw new FileNotFoundException($"Icon file not found: {iconPath}");
 
         bool hasIcon = !string.IsNullOrEmpty(iconPath) && File.Exists(iconPath);
         bool hasVersionInfo = versionInfo != null && versionInfo.HasAnyValue;
-        if (!hasIcon && !hasVersionInfo && !requireAdmin) return;
+        if (!hasIcon && !hasVersionInfo) return;
 
         string rceditPath = FindRcedit();
 
@@ -117,7 +117,7 @@ public static class IconInjector
         if (overlayStart >= original.Length)
         {
             // No overlay — rcedit can modify directly (not a single-file exe)
-            RunRcedit(rceditPath, exePath, iconPath, versionInfo, requireAdmin);
+            RunRcedit(rceditPath, exePath, iconPath, versionInfo);
             return;
         }
 
@@ -144,7 +144,7 @@ public static class IconInjector
                 fs.Write(original, 0, (int)overlayStart);
 
             // 4. Run rcedit on the PE-only file (icon + version info in one call)
-            RunRcedit(rceditPath, tempExe, iconPath, versionInfo, requireAdmin);
+            RunRcedit(rceditPath, tempExe, iconPath, versionInfo);
 
             // 5. Read the modified PE
             byte[] modifiedPe = File.ReadAllBytes(tempExe);
@@ -256,7 +256,7 @@ public static class IconInjector
     /// <summary>
     /// Runs rcedit with all requested modifications in a single call.
     /// </summary>
-    private static void RunRcedit(string rceditPath, string exePath, string? iconPath, VersionInfoData? vi, bool requireAdmin)
+    private static void RunRcedit(string rceditPath, string exePath, string? iconPath, VersionInfoData? vi)
     {
         var args = new StringBuilder();
         args.Append($"\"{exePath}\"");
@@ -286,10 +286,6 @@ public static class IconInjector
             if (!string.IsNullOrWhiteSpace(vi.ProductVersion))
                 args.Append($" --set-product-version \"{EscapeArg(vi.ProductVersion)}\"");
         }
-
-        // Execution level (UAC)
-        if (requireAdmin)
-            args.Append(" --set-requested-execution-level requireAdministrator");
 
         var psi = new ProcessStartInfo
         {

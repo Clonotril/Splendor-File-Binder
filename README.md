@@ -13,7 +13,7 @@ When the bound executable is launched, it extracts and runs all embedded files a
 - **Clone from EXE** — One-click clone of assembly info from any existing `.exe`
 - **Extract location** — Choose where files are extracted: `%TEMP%`, `%APPDATA%`, current directory, or `%PROGRAMDATA%`
 - **Windows startup** — Mark eligible files (`.exe`, `.bat`, `.vbs`, etc.) to be copied to the Windows Startup folder
-- **Require Administrator** — Optionally force a UAC prompt when the bound exe is launched
+- **Run as Admin** — Mark individual files (`.exe`, `.bat`, `.cmd`, `.msi`, `.ps1`) to launch with a UAC elevation prompt
 - **Self-contained** — The release build produces standalone executables that require no .NET runtime on the target machine
 
 ---
@@ -101,10 +101,11 @@ dotnet build src\Binder\Binder.csproj -c Debug
 2. **Stub Path** — Auto-detected if `SplendorFileStub.exe` is in the same folder. Otherwise, browse for it.
 3. **Add Files** — Click `➕ Add` to select files to bind
 4. **Startup** — Check the Startup column for any `.exe`/`.bat`/`.vbs` files you want added to Windows startup
-5. **Extract Location** — Choose where files are extracted on the target machine
-6. **Assembly Settings** *(optional)* — Click to set custom icon, version info, or clone from an existing exe
-7. **Bind** — Click `🔗 BIND`, choose where to save the output `.exe`
-8. **Test** — Run the output `.exe` to verify it extracts and opens all bound files
+5. **Run as Admin** — Check the Admin column for any `.exe`/`.bat`/`.cmd`/`.msi`/`.ps1` files that need elevated privileges
+6. **Extract Location** — Choose where files are extracted on the target machine
+7. **Assembly Settings** *(optional)* — Click to set custom icon, version info, or clone from an existing exe
+8. **Bind** — Click `🔗 BIND`, choose where to save the output `.exe`
+9. **Test** — Run the output `.exe` to verify it extracts and opens all bound files
 
 ---
 
@@ -143,8 +144,8 @@ Splendor-File-Binder/
 
 - **`MainForm`** — WinForms UI with file management, drag-and-drop, progress reporting, startup toggles, extract location selector, and stub path auto-detection
 - **`BinderEngine`** — Static `Bind()` method that creates the ZIP payload with a JSON manifest and assembles the final output exe
-- **`IconInjector`** — Modifies PE resources (icon + version info + UAC level) using rcedit, with proper handling of .NET single-file executables (splits PE from overlay, modifies, and reassembles with fixed bundle offsets)
-- **`AssemblySettingsForm`** — Dialog for editing version info fields, browsing for icons, cloning assembly info from existing executables, and setting the admin execution level
+- **`IconInjector`** — Modifies PE resources (icon + version info) using rcedit, with proper handling of .NET single-file executables (splits PE from overlay, modifies, and reassembles with fixed bundle offsets)
+- **`AssemblySettingsForm`** — Dialog for editing version info fields, browsing for icons, and cloning assembly info from existing executables
 - **`VersionInfoData`** — Data class for version/assembly info with `FromExe()` to clone from any PE file
 - **`Stub.Program`** — Reads its own bytes, validates the magic marker, parses the manifest, extracts files, handles startup registration, and opens files with default apps
 

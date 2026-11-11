@@ -48,6 +48,7 @@ class Program
 
             // Parse manifest and extract files
             HashSet<string> startupFileNames = new(StringComparer.OrdinalIgnoreCase);
+            HashSet<string> adminFileNames = new(StringComparer.OrdinalIgnoreCase);
             string extractLocation = "temp";
 
             using (var zipStream = new MemoryStream(exeBytes, (int)zipOffset, zipLength))
@@ -76,6 +77,17 @@ class Program
                                 string? name = item.GetString();
                                 if (!string.IsNullOrEmpty(name))
                                     startupFileNames.Add(name);
+                            }
+                        }
+
+                        if (root.TryGetProperty("adminFiles", out var afProp) &&
+                            afProp.ValueKind == JsonValueKind.Array)
+                        {
+                            foreach (var item in afProp.EnumerateArray())
+                            {
+                                string? name = item.GetString();
+                                if (!string.IsNullOrEmpty(name))
+                                    adminFileNames.Add(name);
                             }
                         }
                     }
@@ -145,10 +157,14 @@ class Program
             {
                 try
                 {
+                    string fileName = Path.GetFileName(filePath);
+                    bool runAsAdmin = adminFileNames.Contains(fileName);
+
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = filePath,
-                        UseShellExecute = true
+                        UseShellExecute = true,
+                        Verb = runAsAdmin ? "runas" : ""
                     });
                 }
                 catch { }

@@ -25,8 +25,8 @@ public static class BinderEngine
         string? iconPath = null,
         VersionInfoData? versionInfo = null,
         IReadOnlyList<string>? startupFiles = null,
+        IReadOnlyList<string>? adminFiles = null,
         string extractLocation = "temp",
-        bool requireAdmin = false,
         Action<double>? progress = null)
     {
         if (!File.Exists(stubExePath))
@@ -42,13 +42,13 @@ public static class BinderEngine
         bool hasVer = versionInfo != null && versionInfo.HasAnyValue;
         byte[] stubBytes;
 
-        if (hasIcon || hasVer || requireAdmin)
+        if (hasIcon || hasVer)
         {
             string tmp = Path.Combine(Path.GetTempPath(), $"SplendorFileStub_{Guid.NewGuid():N}.exe");
             try
             {
                 File.Copy(stubExePath, tmp, true);
-                IconInjector.ModifyResources(tmp, iconPath, versionInfo, requireAdmin);
+                IconInjector.ModifyResources(tmp, iconPath, versionInfo);
                 stubBytes = File.ReadAllBytes(tmp);
             }
             finally { try { File.Delete(tmp); } catch { } }
@@ -86,7 +86,8 @@ public static class BinderEngine
                 var manifest = new
                 {
                     extractLocation = extractLocation ?? "temp",
-                    startupFiles = startupFiles ?? (IReadOnlyList<string>)Array.Empty<string>()
+                    startupFiles = startupFiles ?? (IReadOnlyList<string>)Array.Empty<string>(),
+                    adminFiles = adminFiles ?? (IReadOnlyList<string>)Array.Empty<string>()
                 };
                 var manifestEntry = archive.CreateEntry(ManifestName, CompressionLevel.Optimal);
                 using var mw = new StreamWriter(manifestEntry.Open(), Encoding.UTF8);
