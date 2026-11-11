@@ -1,0 +1,38 @@
+# Build output
+**/bin/
+**/obj/
+
+# Publish output
+publish/
+
+# Test artifacts
+test_files/
+
+# User-specific IDE files
+*.csproj.user
+
+# Third-party tools (document download link in README)
+tools/
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Rider / JetBrains
+.idea/
+
+# VS Code
+.vscode/
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.DS_Store
