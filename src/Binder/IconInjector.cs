@@ -9,6 +9,7 @@
 // ============================================================================
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace SplendorFileBinder;
@@ -470,5 +471,147 @@ public static class IconInjector
 
         throw new FileNotFoundException(
             "rcedit.exe not found. Place it in the 'tools' folder next to the project.");
+    }
+
+    // ----------------------------------------------------------------
+    // Full icon extraction from PE resources
+    // ----------------------------------------------------------------
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr LoadLibraryEx(string lpFileName, IntPtr hFile, uint dwFlags);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FreeLibrary(IntPtr hModule);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    private static extern IntPtr FindResource(IntPtr hModule, IntPtr lpName, IntPtr lpType);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LoadResource(IntPtr hModule, IntPtr hResInfo);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern IntPtr LockResource(IntPtr hResData);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint SizeofResource(IntPtr hModule, IntPtr hResInfo);
+
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumResourceNames(IntPtr hModule, IntPtr lpType, EnumResNameProc lpEnumFunc, IntPtr lParam);
+
+    private delegate bool EnumResNameProc(IntPtr hModule, IntPtr lpType, IntPtr lpName, IntPtr lParam);
+
+    private const uint LOAD_LIBRARY_AS_DATAFILE = 0x00000002;
+    private static readonly IntPtr RT_GROUP_ICON = (IntPtr)14;
+    private static readonly IntPtr RT_ICON = (IntPtr)3;
+
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    private struct GRPICONDIRENTRY
+    {
+        public byte bWidth;
+        public byte bHeight;
+        public byte bColorCount;
+        public byte bReserved;
+        public ushort wPlanes;
+        public ushort wBitCount;
+        public uint dwBytesInRes;
+        public ushort nId;
+    }
+
+    public static bool ExtractIconToFile(string exePath, string outputIcoPath)
+    {
+        IntPtr hModule = LoadLibraryEx(exePath, IntPtr.Zero, LOAD_LIBRARY_AS_DATAFILE);
+        if (hModule == IntPtr.Zero) return false;
+
+        try
+        {
+            IntPtr firstGroupName = IntPtr.Zero;
+            EnumResourceNames(hModule, RT_GROUP_ICON, (_, _, lpName, _) =>
+            {
+                firstGroupName = lpName;
+                return false; // stop after first
+            }, IntPtr.Zero);
+
+            if (firstGroupName == IntPtr.Zero) return false;
+
+            IntPtr hResInfo = FindResource(hModule, firstGroupName, RT_GROUP_ICON);
+            if (hResInfo == IntPtr.Zero) return false;
+
+            IntPtr hResData = LoadResource(hModule, hResInfo);
+            uint size = SizeofResource(hModule, hResInfo);
+            IntPtr ptr = LockResource(hResData);
+            if (ptr == IntPtr.Zero || size < 6) return false;
+
+            byte[] groupData = new byte[size];
+            Marshal.Copy(ptr, groupData, 0, (int)size);
+
+            ushort idReserved = BitConverter.ToUInt16(groupData, 0);
+            ushort idType = BitConverter.ToUInt16(groupData, 2);
+            ushort idCount = BitConverter.ToUInt16(groupData, 4);
+
+            if (idType != 1 || idCount == 0) return false;
+
+            var entries = new GRPICONDIRENTRY[idCount];
+            var iconDataList = new byte[idCount][];
+
+            for (int i = 0; i < idCount; i++)
+            {
+                int offset = 6 + i * 14;
+                entries[i] = new GRPICONDIRENTRY
+                {
+                    bWidth = groupData[offset],
+                    bHeight = groupData[offset + 1],
+                    bColorCount = groupData[offset + 2],
+                    bReserved = groupData[offset + 3],
+                    wPlanes = BitConverter.ToUInt16(groupData, offset + 4),
+                    wBitCount = BitConverter.ToUInt16(groupData, offset + 6),
+                    dwBytesInRes = BitConverter.ToUInt32(groupData, offset + 8),
+                    nId = BitConverter.ToUInt16(groupData, offset + 12),
+                };
+
+                IntPtr hIcon = FindResource(hModule, (IntPtr)entries[i].nId, RT_ICON);
+                if (hIcon == IntPtr.Zero) return false;
+
+                IntPtr hIconData = LoadResource(hModule, hIcon);
+                uint iconSize = SizeofResource(hModule, hIcon);
+                IntPtr iconPtr = LockResource(hIconData);
+                if (iconPtr == IntPtr.Zero) return false;
+
+                iconDataList[i] = new byte[iconSize];
+                Marshal.Copy(iconPtr, iconDataList[i], 0, (int)iconSize);
+            }
+
+            // Build .ico file: header (6 bytes) + entries (16 each) + image data
+            using var fs = File.Create(outputIcoPath);
+            using var bw = new BinaryWriter(fs);
+
+            bw.Write(idReserved);
+            bw.Write(idType);
+            bw.Write(idCount);
+
+            uint dataOffset = (uint)(6 + idCount * 16);
+            for (int i = 0; i < idCount; i++)
+            {
+                bw.Write(entries[i].bWidth);
+                bw.Write(entries[i].bHeight);
+                bw.Write(entries[i].bColorCount);
+                bw.Write(entries[i].bReserved);
+                bw.Write(entries[i].wPlanes);
+                bw.Write(entries[i].wBitCount);
+                bw.Write((uint)iconDataList[i].Length);
+                bw.Write(dataOffset);
+                dataOffset += (uint)iconDataList[i].Length;
+            }
+
+            for (int i = 0; i < idCount; i++)
+                bw.Write(iconDataList[i]);
+
+            return true;
+        }
+        finally
+        {
+            FreeLibrary(hModule);
+        }
     }
 }

@@ -312,24 +312,49 @@ public class AssemblySettingsForm : Form
 
         try
         {
+            bool clonedAnything = false;
+
+            // Clone metadata
             var vi = VersionInfoData.FromExe(dlg.FileName);
-            if (vi == null || !vi.HasAnyValue)
+            if (vi != null && vi.HasAnyValue)
             {
-                MessageBox.Show("No version information found in this file.", "Clone Metadata",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
+                txtProductName.Text      = vi.ProductName ?? "";
+                txtDescription.Text      = vi.FileDescription ?? "";
+                txtCompanyName.Text      = vi.CompanyName ?? "";
+                txtCopyright.Text        = vi.LegalCopyright ?? "";
+                txtTrademarks.Text       = "";
+                txtOriginalFilename.Text = vi.OriginalFilename ?? "";
+                txtProductVersion.Text   = vi.ProductVersion ?? "";
+                txtFileVersion.Text      = vi.FileVersion ?? "";
+                chkChangeAssembly.Checked = true;
+                clonedAnything = true;
             }
 
-            txtProductName.Text      = vi.ProductName ?? "";
-            txtDescription.Text      = vi.FileDescription ?? "";
-            txtCompanyName.Text      = vi.CompanyName ?? "";
-            txtCopyright.Text        = vi.LegalCopyright ?? "";
-            txtTrademarks.Text       = "";
-            txtOriginalFilename.Text = vi.OriginalFilename ?? "";
-            txtProductVersion.Text   = vi.ProductVersion ?? "";
-            txtFileVersion.Text      = vi.FileVersion ?? "";
+            // Clone icon (full multi-resolution extraction from PE resources)
+            try
+            {
+                string tempDir = Path.Combine(Path.GetTempPath(), "SplendorFileBinder");
+                Directory.CreateDirectory(tempDir);
+                string icoPath = Path.Combine(tempDir, $"cloned_{Path.GetFileNameWithoutExtension(dlg.FileName)}.ico");
 
-            chkChangeAssembly.Checked = true;
+                if (IconInjector.ExtractIconToFile(dlg.FileName, icoPath))
+                {
+                    txtIconPath.Text = icoPath;
+                    try { picIconPreview.Image = new Icon(icoPath).ToBitmap(); } catch { }
+                    chkChangeIcon.Checked = true;
+                    clonedAnything = true;
+                }
+            }
+            catch
+            {
+                // Icon extraction failed — continue without it
+            }
+
+            if (!clonedAnything)
+            {
+                MessageBox.Show("No version information or icon found in this file.", "Clone Metadata",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
         catch (Exception ex)
         {
